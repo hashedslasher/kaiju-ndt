@@ -42,9 +42,22 @@
               cmake
               udisks
               tio
+
+              glibc.dev
+              binutils
+              gcc
+              cmake
+              ninja
+              pkg-config
+              qt5.wrapQtAppsHook            
+              qt5.qtbase
+              qtcreator
             ];
 
             PICO_SDK_PATH = "${local-pico-sdk}/lib/pico-sdk";
+            
+            QT_PLUGIN_PATH = "${pkgs.qt5.qtbase}/lib/qt-5/plugins";
+            QML2_IMPORT_PATH = "${pkgs.qt5.qtdeclarative}/lib/qt-5/qml";
 
             LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
               pkgs.stdenv.cc.cc.lib

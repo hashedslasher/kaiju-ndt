@@ -3,11 +3,12 @@ import glob
 import time
 from typing import Dict, Any, List
 import serial
+import serial.tools.list_ports
 
 
 def _find_port() -> str:
     if sys.platform.startswith("win"):
-        ports = glob.glob("COM[0-9]*")
+        ports = [p.device for p in serial.tools.list_ports.comports()]
     elif sys.platform.startswith("linux"):
         ports = glob.glob("/dev/ttyACM*") + glob.glob("/dev/ttyUSB*")
     elif sys.platform.startswith("darwin"):  # macOS
@@ -18,6 +19,7 @@ def _find_port() -> str:
     if not ports:
         raise OSError("No serial device found")
     return ports[0]
+
 
 
 def pprint(ans: List[bytes]) -> str:

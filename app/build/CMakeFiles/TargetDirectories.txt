@@ -1,0 +1,5 @@
+/mnt/tsb-2tb/projects/u-ndt/app/build/CMakeFiles/name_of_the_app.dir
+/mnt/tsb-2tb/projects/u-ndt/app/build/CMakeFiles/edit_cache.dir
+/mnt/tsb-2tb/projects/u-ndt/app/build/CMakeFiles/rebuild_cache.dir
+/mnt/tsb-2tb/projects/u-ndt/app/build/CMakeFiles/name_of_the_app_autogen_timestamp_deps.dir
+/mnt/tsb-2tb/projects/u-ndt/app/build/CMakeFiles/name_of_the_app_autogen.dir
