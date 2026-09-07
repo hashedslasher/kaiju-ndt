@@ -1,7 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/mnt/tsb-2tb/projects/u-ndt/app/build/cmake_install.cmake"
-	],
-	"Parallel" : false
-}

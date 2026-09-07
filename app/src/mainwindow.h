@@ -2,7 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include "qcustomplot.h" // Include the QCustomPlot header
+#include "qcustomplot.h"
 
 class MainWindow : public QMainWindow
 {
