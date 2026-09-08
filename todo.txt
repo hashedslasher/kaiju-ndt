@@ -17,4 +17,4 @@ multiple scans of one area - if we do automous, stop motors ~10ms and take multi
 Here red means no correlation with known defect-free spot, implying there is a significant defect
 
 
-c++ <math> lib computes more than needed, consider taylor series or know dsp methods
+c++ <math> lib computes more than needed, consider taylor series or known dsp methods
