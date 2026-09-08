@@ -3,22 +3,31 @@ import glob
 import time
 from typing import Dict, Any, List
 import serial
-import serial.tools.list_ports
 
 
 def _find_port() -> str:
-    if sys.platform.startswith("win"):
-        ports = [p.device for p in serial.tools.list_ports.comports()]
-    elif sys.platform.startswith("linux"):
-        ports = glob.glob("/dev/ttyACM*") + glob.glob("/dev/ttyUSB*")
-    elif sys.platform.startswith("darwin"):  # macOS
-        ports = glob.glob("/dev/tty.usbmodem*") + glob.glob("/dev/tty.usbserial*")
-    else:
-        raise OSError(f"Unsupported platform: {sys.platform}")
-
-    if not ports:
-        raise OSError("No serial device found")
-    return ports[0]
+    import serial.tools.list_ports
+    
+    # Common USB-to-Serial controller chip keywords used in NDT hardware boards
+    hw_keywords = ["ch340", "ftdi", "cp210", "prolific", "usb serial", "usb-to-serial"]
+    
+    ports = list(serial.tools.list_ports.comports())
+    
+    # 1. Smart Scan: Look for any port matching our hardware descriptors
+    for p in ports:
+        desc = p.description.lower()
+        hwid = p.hwid.lower()
+        if any(key in desc or key in hwid for key in hw_keywords):
+            print(f"[AUTO-DETECT] Found NDT hardware on: {p.device} ({p.description})")
+            return p.device
+            
+    # 2. Fallback Scan: If keywords fail, just grab the first available active COM port
+    if ports:
+        print(f"[AUTO-DETECT] No matching keywords. Defaulting to first active port: {ports[0].device}")
+        return ports[0].device
+        
+    # 3. Crash Prevention: Alert the user if absolutely nothing is plugged in
+    raise OSError("No serial device found. Please check your USB cable connection.")
 
 
 
