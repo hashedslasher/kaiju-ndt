@@ -2,6 +2,9 @@ merge flake.nix and app/flake.nix
 write app/src/device.cpp
 implement pre-processing code (after onboard dsp and before PCC)
 
+button to toggle A-scan/C-scan
+buttons for common things: file save location, etc.
+
 ## Below needs to be moved to formal docs after polished
 
 Thoughts on signal chain:
