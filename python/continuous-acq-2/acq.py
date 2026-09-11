@@ -8,7 +8,7 @@ from lib.ndt_acquisition import get_probe
 class AScanApp(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Pic0rick Live A-Scan (PyQtGraph)")
+        self.setWindowTitle("A-scan")
         self.resize(900, 450)
         
         self.probe = get_probe()
@@ -29,7 +29,7 @@ class AScanApp(QtWidgets.QMainWindow):
         self.plot_widget.setLabel('bottom', 'Time', units='µs')
         self.plot_widget.setLabel('left', 'Amplitude')
         
-        self.curve_env = self.plot_widget.plot(pen=pg.mkPen(color='orange', width=2), name="Squared Envelope")
+        self.curve_env = self.plot_widget.plot(pen=pg.mkPen(color='white', width=2), name="Squared Envelope")
         self.curve_peaks = self.plot_widget.plot(pen=None, symbol='x', symbolPen='r', symbolBrush='r', symbolSize=12)
 
         self.timer = QtCore.QTimer()
