@@ -13,7 +13,7 @@
 #include "adc.h"
 
 #include "adc.pio.h"
-
+#include "fast_serial.h"
 //---------------------------------------------------------------------------
 // GLOBAL VARIABLES
 //---------------------------------------------------------------------------
@@ -81,7 +81,7 @@ void pio_adc_clear_fifo()
 bool dma_wait_timeout(uint chan, uint32_t ms) {
     absolute_time_t deadline = make_timeout_time_ms(ms);
     while (dma_channel_is_busy(chan)) {
-        if (absolute_time_diff_us(get_absolute_time(), deadline) >= 0) {
+        if (absolute_time_diff_us(get_absolute_time(), deadline) <= 0) {
             return false;
         }
     }
@@ -92,12 +92,15 @@ bool dma_wait_timeout(uint chan, uint32_t ms) {
 // PULSE ADC RESTART SMs
 //---------------------------------------------------------------------------
 void reset_all_sms() {
-    uint sms[] = { sm, sm2, sm3 };
-    for (int i = 0; i < 3; i++) {
-        pio_sm_set_enabled(pio_adc, sms[i], false);
-        pio_sm_restart(pio_adc, sms[i]);
-        pio_sm_set_enabled(pio_adc, sms[i], true);
-    }
+    uint mask = (1u << sm) | (1u << sm2) | (1u << sm3);
+    
+    pio_set_sm_mask_enabled(pio_adc, mask, false);
+    
+    pio_sm_restart(pio_adc, sm);
+    pio_sm_restart(pio_adc, sm2);
+    pio_sm_restart(pio_adc, sm3);
+    
+    pio_enable_sm_mask_in_sync(pio_adc, mask);
 }
 
 //---------------------------------------------------------------------------
@@ -116,27 +119,34 @@ void pulse_adc_trigger(const char *data)
     while (i < 3)
     {
         if (token != NULL)
-            numbers[i] = (atoi(token) / 8); // divide by 8 as one cycle is 8 nanoseconds
+            numbers[i] = (atoi(token) / 8); 
         else
-            numbers[i] = 125; // default value
+            numbers[i] = 125; 
         i++;
         token = strtok(NULL, " ");
     }
+    
+    uint mask = (1u << sm) | (1u << sm2) | (1u << sm3);
+    pio_set_sm_mask_enabled(pio_adc, mask, false);
+    
     pio_interrupt_clear(pio_adc, (1u<<0)|(1u<<1)|(1u<<2));
     pio_adc_clear_fifo();
-    reset_all_sms();
-    memset(buffer, 0x00, SAMPLE_COUNT);
-    printf("Acquisition of %d samples started\n", SAMPLE_COUNT);
+    pio_sm_restart(pio_adc, sm);
+    pio_sm_restart(pio_adc, sm2);
+    pio_sm_restart(pio_adc, sm3);
+    
     dma_channel_configure(dma_chan, &dma_chan_cfg, buffer, &pio_adc->rxf[sm], SAMPLE_COUNT, true);
-    pio_sm_put_blocking(pio_adc, sm, SAMPLE_COUNT);
-    pio_sm_put_blocking(pio_adc, sm3, numbers[2]);
-    pio_sm_put_blocking(pio_adc, sm2, numbers[0]);
-    pio_sm_put_blocking(pio_adc, sm2, numbers[1]);
-    if (!dma_wait_timeout(dma_chan, DMA_TIMEOUT_MS)) {
-        printf("ADC timeout occured\n");
+    
+    pio_sm_put(pio_adc, sm, SAMPLE_COUNT);
+    pio_sm_put(pio_adc, sm3, numbers[2]);
+    pio_sm_put(pio_adc, sm2, numbers[0]);
+    pio_sm_put(pio_adc, sm2, numbers[1]);
+    
+    pio_enable_sm_mask_in_sync(pio_adc, mask);
+    
+    if (dma_wait_timeout(dma_chan, DMA_TIMEOUT_MS)) {
+        fast_serial_write((uint8_t*)buffer, SAMPLE_COUNT * sizeof(buffer[0]));
     }
-    // dma_channel_wait_for_finish_blocking(dma_chan);
-    printf("Acquisition ended\n");
 }
 
 //---------------------------------------------------------------------------
@@ -145,14 +155,7 @@ void pulse_adc_trigger(const char *data)
 
 void adc(const char *data)
 {
-    printf("----------Start of ACQ----------\n");
-
-    for (uint16_t i = 0; i < SAMPLE_COUNT; ++i)
-    {
-        printf("%X,", ((buffer[i] >> 1) & 0x3FF));
-    }
-
-    printf("\n-----------End of ACQ-----------\n");
+    fast_serial_write((uint8_t*)buffer, SAMPLE_COUNT * sizeof(buffer[0]));
 }
 
 //---------------------------------------------------------------------------

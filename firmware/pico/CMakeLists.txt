@@ -47,15 +47,16 @@ pico_set_program_version(adc-pulse "0.1")
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(adc-pulse 0)
-pico_enable_stdio_usb(adc-pulse 1)
+pico_enable_stdio_usb(adc-pulse 0)
 
-pico_generate_pio_header(adc-pulse ${CMAKE_CURRENT_LIST_DIR}/adc/adc.pio)
-pico_generate_pio_header(adc-pulse ${CMAKE_CURRENT_LIST_DIR}/max/max14866.pio)
+pico_generate_pio_header(adc-pulse ${CMAKE_CURRENT_LIST_DIR}/src/adc/adc.pio)
+pico_generate_pio_header(adc-pulse ${CMAKE_CURRENT_LIST_DIR}/src/max/max14866.pio)
 
 target_sources(adc-pulse PRIVATE
-    ${CMAKE_CURRENT_LIST_DIR}/main.c
-    ${CMAKE_CURRENT_LIST_DIR}/adc/adc.c
-    ${CMAKE_CURRENT_LIST_DIR}/max/max14866.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/main.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/adc/adc.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/max/max14866.c
+    ${CMAKE_CURRENT_LIST_DIR}/external/pico_fast_serial/fast_serial.c
 )
 
 # Add the standard include files to the build
@@ -70,6 +71,8 @@ target_link_libraries(adc-pulse PRIVATE
     hardware_clocks
     hardware_gpio
     hardware_irq
+    tinyusb_device
+    tinyusb_board
 )
 
 pico_add_extra_outputs(adc-pulse)

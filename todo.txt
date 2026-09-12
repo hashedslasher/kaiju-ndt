@@ -1,20 +1,7 @@
 merge flake.nix and app/flake.nix
+
 write app/src/device.cpp
-implement pre-processing code (after onboard dsp and before PCC)
 
-button to toggle A-scan/C-scan
-buttons for common things: file save location, etc.
+helpers for current python test scripts (gui input for material, etc.)
 
-## Below needs to be moved to formal docs after polished
-
-Thoughts on signal chain:
-multiple scans of one area - if we do automous, stop motors ~10ms and take multiple scans
--> On board dsp (if we can pull this off with pico 1)
--> average scans
--> pearson correlation coefficient
--> take abs() of PCC - returns 0-1, map to color. Example: 0.00 = red, 0.50 = yellow, 1.00 = blue
-
-Here red means no correlation with known defect-free spot, implying there is a significant defect
-
-
-c++ <math> lib computes more than needed, consider taylor series or known dsp methods
+onboard dsp

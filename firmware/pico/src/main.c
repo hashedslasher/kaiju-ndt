@@ -3,6 +3,7 @@
 //--------------------------------------------------------------------------
 #include "adc/adc.h"
 #include "max/max14866.h"
+#include "fast_serial.h"
 
 //---------------------------------------------------------------------------
 // GLOBALS
@@ -27,10 +28,10 @@ command_t command_list[] = {
 
 void process_command(char *input)
 {
-    char *command = strtok(input, " ");
-    char *subcommand = strtok(NULL, " ");
-    char *args = strtok(NULL, "");
-
+    char *command = strtok(input, " \r\n");
+    char *subcommand = strtok(NULL, " \r\n");
+    char *args = strtok(NULL, "\r\n");
+    
     if (command != NULL && subcommand != NULL)
     {
         char full_command[50];
@@ -66,34 +67,18 @@ void process_command(char *input)
 
 void read_input(char *buffer, int max_len)
 {
-    int index = 0;
-    while (1)
-    {
-        char ch = getchar();
-        if (ch == '\r' || ch == '\n')
-        {
-            buffer[index] = '\0';
-            printf("\n");
-            return;
+    int len = fast_serial_read_until(buffer, max_len, '\n'); 
+    
+    if (len > 0) {
+        buffer[len] = '\0';
+        if (buffer[len - 1] == '\r') {
+            buffer[len - 1] = '\0';
         }
-        else if (ch == 127 || ch == '\b')
-        {
-            if (index > 0)
-            {
-                index--;
-                printf("\b \b");
-            }
-        }
-        else if (ch >= 32 && ch <= 126)
-        {
-            if (index < max_len - 1)
-            {
-                buffer[index++] = ch;
-                putchar(ch);
-            }
-        }
+    } else {
+        buffer[0] = '\0';
     }
 }
+
 
 //---------------------------------------------------------------------------
 // MAIN FUNCTION
@@ -101,12 +86,14 @@ void read_input(char *buffer, int max_len)
 
 int main()
 {
-    stdio_init_all();
+    fast_serial_init();
 
-    while (!stdio_usb_connected())
+    while (!tud_mounted())
     {
+        tud_task();
         tight_loop_contents();
     }
+    
     sleep_ms(100);
     pio_adc_init();
     sleep_ms(100);
@@ -114,12 +101,17 @@ int main()
     sleep_ms(100);
     max14866_init();
     sleep_ms(100);
+
     char input[128];
     while (true)
     {
-        printf("run> ");
-        fflush(stdout);
+        fast_serial_task();
+        
+        
         read_input(input, sizeof(input));
-        process_command(input);
+        if (input[0] != '\0')
+        {
+            process_command(input);
+        }
     }
 }
