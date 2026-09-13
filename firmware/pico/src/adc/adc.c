@@ -13,7 +13,7 @@
 #include "adc.h"
 
 #include "adc.pio.h"
-#include "fast_serial.h"
+#include "../external/pico_fast_serial/fast_serial.h"
 //---------------------------------------------------------------------------
 // GLOBAL VARIABLES
 //---------------------------------------------------------------------------

@@ -3,7 +3,7 @@
 //--------------------------------------------------------------------------
 #include "adc/adc.h"
 #include "max/max14866.h"
-#include "fast_serial.h"
+#include "../external/pico_fast_serial/fast_serial.h"
 
 //---------------------------------------------------------------------------
 // GLOBALS

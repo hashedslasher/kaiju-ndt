@@ -62,6 +62,7 @@ target_sources(adc-pulse PRIVATE
 # Add the standard include files to the build
 target_include_directories(adc-pulse PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/external/pico_fast_serial
 )
 
 target_link_libraries(adc-pulse PRIVATE

@@ -1,7 +1,7 @@
 #include <iostream>
 #include <string>
 #include "device.h"
-#include "../include/asio.hpp"
+#include "../external/asio.hpp"
 //openPort: get OS, attempt to open port, error on fail
 //writeDac: 
 

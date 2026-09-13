@@ -1,7 +1,7 @@
 { lib, stdenv, cmake, qt5, libsForQt5, zlib }:
 
 stdenv.mkDerivation {
-  pname = "u-ndt-app";
+  pname = "kaiju-viewer";
   version = "1.0.0";
   src = ./.;
 
@@ -23,6 +23,6 @@ stdenv.mkDerivation {
 
   installPhase = ''
     mkdir -p $out/bin
-    cp app_executable $out/bin/ || true 
+    cp kaiju-viewer $out/bin/ || true
   '';
 }
