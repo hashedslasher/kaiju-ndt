@@ -6,7 +6,7 @@ The picOrick is used for the pulser/receiver
 
 The name Kaiju came from a toy that randomly appeared in our lab one day
 
-![Kaiju toy](assets/kaiju)
+![Kaiju toy](assets/kaiju.jpg)
 
 ## To run the python scripts
 
