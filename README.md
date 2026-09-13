@@ -1,8 +1,7 @@
 # Kaiju U-NDT
 
 This is my team's EE senior design project. It is in very early development and will evolve into an autonomous immersion ultrasound NDT device.
-The picOrick is used for the pulser/receiver
-[pic0rick](https://github.com/kelu124/pic0rick)
+The [pic0rick](https://github.com/kelu124/pic0rick) is used for the pulser/receiver
 
 The name Kaiju came from a toy that randomly appeared in our lab one day
 
