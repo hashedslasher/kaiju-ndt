@@ -1,90 +1,89 @@
+# Main libs
+import os
 import sys
 import glob
 import time
-from typing import Dict, Any, List
+import struct
+# Third party
 import serial
+import numpy as np
 
 
-def _find_port() -> str:
-    import serial.tools.list_ports
-    
-    # Common USB-to-Serial controller chip keywords used in NDT hardware boards
-    hw_keywords = ["ch340", "ftdi", "cp210", "prolific", "usb serial", "usb-to-serial"]
-    
-    ports = list(serial.tools.list_ports.comports())
-    
-    # 1. Smart Scan: Look for any port matching our hardware descriptors
-    for p in ports:
-        desc = p.description.lower()
-        hwid = p.hwid.lower()
-        if any(key in desc or key in hwid for key in hw_keywords):
-            print(f"[AUTO-DETECT] Found NDT hardware on: {p.device} ({p.description})")
-            return p.device
-            
-    # 2. Fallback Scan: If keywords fail, just grab the first available active COM port
-    if ports:
-        print(f"[AUTO-DETECT] No matching keywords. Defaulting to first active port: {ports[0].device}")
-        return ports[0].device
-        
-    # 3. Crash Prevention: Alert the user if absolutely nothing is plugged in
-    raise OSError("No serial device found. Please check your USB cable connection.")
+def _find_port():
+    if sys.platform.startswith("win"):
+        ports = glob.glob("COM[0-9]*")
+    elif sys.platform.startswith("linux"):
+        ports = glob.glob("/dev/ttyACM*") + glob.glob("/dev/ttyUSB*")
+    elif sys.platform.startswith("darwin"):  # macOS
+        ports = glob.glob("/dev/tty.usbmodem*") + glob.glob("/dev/tty.usbserial*")
+    else:
+        raise OSError(f"Unsupported platform: {sys.platform}")
+
+    if not ports:
+        raise OSError("No serial device found")
+    return ports[0]
 
 
-
-def pprint(ans: List[bytes]) -> str:
+def pprint(ans):
     return "".join(b.decode("utf-8") for b in ans)
 
 
-def sread(device: Dict[str, Any]) -> List[bytes]:
-    done = False
-    ans = []
-    while not done:
-        res = device["ser"].readline()
-        ans.append(res)
-        if res == b"":
-            done = True
-            
-    if device["verbose"]:
-        print(pprint(ans), end="")
-        
-    if device["log"]:
-        with open(device["log_file"], "a") as f:
-            for line in ans:
-                if line and line != b"":
-                    f.write(line.decode("utf-8", errors="replace"))
-    return ans
+class Pic0rick:
+
+    def sread(self):
+        done = False
+        ans = []
+        while not done:
+            res = self.ser.readline()
+            ans.append(res)
+            if res == b"":
+                done = True
+        if self.verbose:
+            pprint(ans)
+        if self.log:
+            with open(self.log_file, "a") as f:
+                for line in ans:
+                    if line and line != b"":
+                        f.write(line.decode("utf-8", errors="replace"))
+        return ans
+
+    def bread(self, byte_count: int) -> bytes:
+        """Read a specific number of raw binary bytes."""
+        return self.ser.read(byte_count)
+
+    def __init__(self, port=None, verbose=True, logging=False, log_file=".log"):
+        self.verbose = verbose
+        self.log = logging
+        self.log_file = log_file
+
+        # Detect the port
+        port_device = port if port is not None else _find_port()
+        print("Device on", port_device)
+
+        self.ser = serial.Serial(port_device, 115200, timeout=0.2)
+        self.ser.baudrate = 115200
+        time.sleep(1)  # wait for the serial connection to initialize
+        self.sread()
+
+        self.Fech = 60e6  # ADC sampling frequency (Hz)
 
 
-def init_device(port: str = None, verbose: bool = True, logging: bool = False, log_file: str = ".log") -> Dict[str, Any]:
-    port_device = port if port is not None else _find_port()
-    print("Device on", port_device)
+    def dac(self, N):
+        """Write a value to the 10-bit DAC MCP4812 (write dac).
 
-    ser = serial.Serial(port_device, 115200, timeout=0.2)
-    time.sleep(1)  # wait for the serial connection to initialize
-
-    device = {
-        "ser": ser,
-        "verbose": verbose,
-        "log": logging,
-        "log_file": log_file,
-        "Fech": 60e6  # ADC sampling frequency (Hz)
-    }
+        Args:
+            N: DAC value (10-bit).
+        """
+        self.ser.write(bytearray("write dac " + str(N) + "\n", "ascii"))
+        ans = self.sread()
+        return ans
     
-    sread(device)
-    return device
-
-
-def dac(device: Dict[str, Any], n_val: int) -> List[bytes]:
-    """Write a value to the 10-bit DAC MCP4812 (write dac)."""
-    device["ser"].write(bytearray(f"write dac {n_val}\n", "ascii"))
-    return sread(device)
-
-
-def read_device(device: Dict[str, Any]) -> List[bytes]:
-    device["ser"].write(bytearray("read\n", "ascii"))
-    return sread(device)
-
-
-def pulse_adc_trigger(device: Dict[str, Any], pon: int = 200, poff: int = 200, damp: int = 2000) -> List[bytes]:
-    device["ser"].write(bytearray(f"start acq {pon} {poff} {damp}\n", "ascii"))
-    return sread(device)
+    def read(self):
+        self.ser.write(bytearray("read\n", "ascii"))
+        ans = self.sread()
+        return ans
+    
+    def pulse_adc_trigger(self, pon: int=200, poff: int=200, damp: int=2000):
+        self.ser.write(bytearray("start acq "+str(pon)+" "+str(poff)+" "+str(damp)+"\n",'ascii'))
+        ans = self.sread()
+        return ans

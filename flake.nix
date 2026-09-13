@@ -2,7 +2,8 @@
   description = "U-NDT board flake";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/release-26.05";
+    nixpkgs.url = "nixpkgs/nixos-25.05";
+    
   };
 
   outputs = { self, nixpkgs }:
@@ -36,7 +37,7 @@
             withSubmodules = true;
           };
 
-          pythonEnv = pkgs.python314.withPackages (ps: with ps; [
+          pythonEnv = pkgs.python313.withPackages (ps: with ps; [
             numpy pyserial matplotlib h5py scipy pyqt5 pyqtgraph
           ]);
 
@@ -59,7 +60,7 @@
             buildInputs = with pkgs; [
               pythonEnv
               local-pico-sdk picotool
-              udisks tio glibc.dev binutils cmake pkg-config 
+              udisks tio binutils cmake pkg-config 
               gdb 
               makeWrapper bashInteractive
             ];
@@ -67,17 +68,12 @@
             PICO_SDK_PATH = "${local-pico-sdk}/lib/pico-sdk";
             QT_PLUGIN_PATH = "${pkgs.qt5.qtbase}/lib/qt-5/plugins";
             QML2_IMPORT_PATH = "${pkgs.qt5.qtdeclarative}/lib/qt-5/qml";
-            CMAKE_C_COMPILER = "${pkgs.gcc-arm-embedded}/bin/arm-none-eabi-gcc";
-            CMAKE_CXX_COMPILER = "${pkgs.gcc-arm-embedded}/bin/arm-none-eabi-g++";
 
             LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
               pkgs.stdenv.cc.cc.lib
               pkgs.zlib
             ];
             shellHook = ''
-              export QT_PLUGIN_PATH="${qtEnv}/lib/qt-5/plugins"
-              export QML_IMPORT_PATH="${qtEnv}/lib/qt-5/qml"
-              
               zshdir=$(mktemp -d)
               makeWrapper "$(type -p zsh)" "$zshdir/zsh" "''${qtWrapperArgs[@]}"
               exec "$zshdir/zsh"

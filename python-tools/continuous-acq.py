@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 # --- FUNCTION IMPORT CONVERSION ---
 # We now import the explicit functional methods instead of the class name
-from lib.ndt_acquisition import (
+from lib2.ndt_acquisition import (
     acquire_signal, 
     plot_acquisition, 
     get_time_vector, 

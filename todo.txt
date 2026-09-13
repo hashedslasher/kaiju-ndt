@@ -1,5 +1,3 @@
-merge flake.nix and app/flake.nix
-
 write app/src/device.cpp
 
 helpers for current python test scripts (gui input for material, etc.)
