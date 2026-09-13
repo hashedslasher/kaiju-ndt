@@ -8,6 +8,9 @@ The name Kaiju came from a toy that randomly appeared in our lab one day
 
 ![Kaiju toy](assets/kaiju.jpg)
 
+## Development
+   If you are working on this project see [Setup](setup/README.md)
+
 ## To run the python scripts
 
 1. **Clone the repo**
@@ -57,5 +60,3 @@ The name Kaiju came from a toy that randomly appeared in our lab one day
    nix develop .
    python3 python-tools/{script_name}.py
    ```
-## Development
-   If you are working on this project see [Setup](setup/README.md)
