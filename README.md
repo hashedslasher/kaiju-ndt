@@ -1,11 +1,12 @@
 # Kaiju U-NDT
 
 This is my team's EE senior design project. It is in very early development and will evolve into an autonomous immersion ultrasound NDT device.
-The picOrick is used for the pulser/reciever
+The picOrick is used for the pulser/receiver
 [pic0rick](https://github.com/kelu124/pic0rick)
 
 The name Kaiju came from a toy that randomly appeared in our lab one day
-./assets/kaiju.jpg
+
+![Kaiju toy](assets/kaiju)
 
 ## To run the python scripts
 
@@ -24,7 +25,7 @@ The name Kaiju came from a toy that randomly appeared in our lab one day
    - **Linux:** Install python with your package manager:
    Debian based:
    ```bash
-   sudo apt install sudo apt install python3 python3-pip
+   sudo apt install python3 python3-pip
    ```
    Arch:
    ```bash
@@ -33,7 +34,7 @@ The name Kaiju came from a toy that randomly appeared in our lab one day
 ### Python dependencies
    - Open PowerShell or Terminal and run:
      ```bash
-     pip install pyserial numpy matplotlib scippy h5py picodev
+     pip install pyserial numpy matplotlib scipy h5py picodev
      ```
 
 3. **Flashing the firmware**
@@ -57,4 +58,4 @@ The name Kaiju came from a toy that randomly appeared in our lab one day
    python3 python-tools/{script_name}.py
    ```
 ## Development
-   If you are working on this project see [Setup](setup/setup.md)
+   If you are working on this project see [Setup](setup/README.md)
