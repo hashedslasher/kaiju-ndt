@@ -63,6 +63,7 @@
               udisks tio binutils cmake pkg-config 
               gdb 
               makeWrapper bashInteractive
+              libsForQt5.qt5.qtwayland
             ];
             
             PICO_SDK_PATH = "${local-pico-sdk}/lib/pico-sdk";

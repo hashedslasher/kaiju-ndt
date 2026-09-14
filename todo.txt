@@ -3,3 +3,14 @@ write app/src/device.cpp
 helpers for current python test scripts (gui input for material, etc.)
 
 onboard dsp
+
+standards:
+
+22232-1 - Non-destructive testing — Characterization and verification of ultrasonic test equipment. Part-1: Instruments
+22232-2 - Non-destructive testing — Characterization and verification of ultrasonic test equipment. Part-2: Probes
+22232-3 - Non-destructive testing — Characterization and verification of ultrasonic test equipment. Part 3: Combined equipment
+ASTM E1065 - Standard Practice for Evaluating Characteristics of Ultrasonic Search Units
+ASTM E164 - Standard Practice for Contact Ultrasonic Testing of Weldments
+ASTM E1001-11 - Standard Practice for Detection and Evaluation of Discontinuities by the Immersed Pulse-Echo Ultrasonic Method Using Longitudinal Waves
+
+Ask Ryan for these documents, say we wan't to "characterize probe/instrument"

@@ -2,6 +2,7 @@ import sys
 import numpy as np
 from scipy import signal
 from PyQt5 import QtWidgets, QtCore
+from PyQt5.QtWidgets import QAction
 import pyqtgraph as pg
 from lib.ndt_acquisition import get_probe
 
@@ -11,12 +12,39 @@ class AScanApp(QtWidgets.QMainWindow):
         self.setWindowTitle("A-scan")
         self.resize(900, 450)
         
+        menubar = self.menuBar()
+        self.file_menu = menubar.addMenu('&File')
+        
+        self.exit_action = QAction('Exit', self)
+        self.exit_action.triggered.connect(self.close)
+        self.file_menu.addAction(self.exit_action)
+        
+        self.save_image = QAction('Save Image', self)
+        self.file_menu.addAction(self.save_image)
+        
+        
+        self.parameters = menubar.addMenu('&Parameters')        
+        self.gain = QAction('Gain', self)
+        self.parameters.addAction(self.gain)
+        
+        self.pon_poff = QAction('Pon/Poff', self)
+        self.parameters.addAction(self.pon_poff)
+
+        self.window = QAction('Window', self)
+        self.parameters.addAction(self.window)
+        
+        self.pulse_rate = QAction('Pulse Rate', self)
+        self.parameters.addAction(self.pulse_rate)
+        
+        self.damp = QAction('Damp', self)
+        self.parameters.addAction(self.damp)
+
         self.probe = get_probe()
         self.fs = 60e6
         self.gain = 460
-        self.pon, self.poff, self.damp = 80, 80, 6000
+        self.pon, self.poff, self.damp = 75, 75, 6000
         self.probe.dac(self.gain)
-        self.start_us, self.end_us = 0, 25
+        self.start_us, self.end_us = 8, 12.5
         
         nyq = self.fs / 2.0
         self.b, self.a = signal.butter(2, [7.5e6 / nyq, 12.5e6 / nyq], btype='bandpass')
@@ -58,11 +86,13 @@ class AScanApp(QtWidgets.QMainWindow):
                 normalized = (shifted_ints.astype(np.float32) - 512.0) / 512.0
                 pulses.append(normalized)
             else:
-                print(f"Warning: Expected {BYTES_PER_PULSE} bytes, got {len(raw_bytes)}")
+                print(f"Expected {BYTES_PER_PULSE} bytes, got {len(raw_bytes)}")
         
         if len(pulses) < waveform_count:
             return
-            
+        
+        #np.savetxt("pulses.csv", pulses)
+
         sig = np.mean(pulses, axis=0)
         sig_filtered = signal.filtfilt(self.b, self.a, sig)
 
