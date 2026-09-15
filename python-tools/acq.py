@@ -6,6 +6,18 @@ from PyQt5.QtWidgets import QAction
 import pyqtgraph as pg
 from lib.ndt_acquisition import get_probe
 
+
+class OverlayLineEdit(QtWidgets.QLineEdit):
+    """Command prompt"""
+    def keyPressEvent(self, event):
+        if event.key() == QtCore.Qt.Key_Escape:
+            self.clear()
+            self.hide()
+            event.accept()
+        else:
+            super().keyPressEvent(event)
+
+
 class AScanApp(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
@@ -21,23 +33,6 @@ class AScanApp(QtWidgets.QMainWindow):
         
         self.save_image = QAction('Save Image', self)
         self.file_menu.addAction(self.save_image)
-        
-        
-        self.parameters = menubar.addMenu('&Parameters')        
-        self.gain = QAction('Gain', self)
-        self.parameters.addAction(self.gain)
-        
-        self.pon_poff = QAction('Pon/Poff', self)
-        self.parameters.addAction(self.pon_poff)
-
-        self.window = QAction('Window', self)
-        self.parameters.addAction(self.window)
-        
-        self.pulse_rate = QAction('Pulse Rate', self)
-        self.parameters.addAction(self.pulse_rate)
-        
-        self.damp = QAction('Damp', self)
-        self.parameters.addAction(self.damp)
 
         self.probe = get_probe()
         self.fs = 60e6
@@ -60,9 +55,71 @@ class AScanApp(QtWidgets.QMainWindow):
         self.curve_env = self.plot_widget.plot(pen=pg.mkPen(color='white', width=2), name="Squared Envelope")
         self.curve_peaks = self.plot_widget.plot(pen=None, symbol='x', symbolPen='r', symbolBrush='r', symbolSize=12)
 
+        self.cmd_input = OverlayLineEdit(self)
+        self.cmd_input.setPlaceholderText("gain, damp, pon, poff, window start end")
+        self.cmd_input.setStyleSheet("""
+            QLineEdit {
+                background-color: rgba(0, 0, 0, 180);
+                color: #FFFFFF;
+                border: 1px solid #FFFFFF;
+                border-radius: 4px;
+                padding: 6px 10px;
+                font-size: 14px;
+                font-family: monospace;
+            }
+        """)
+        self.cmd_input.hide()
+        self.cmd_input.returnPressed.connect(self.handle_command)
+
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_frame)
         self.timer.start(20)
+
+    def keyPressEvent(self, event):
+        if event.key() == QtCore.Qt.Key_Colon or event.text() == ':':
+            self.center_command_prompt()
+            self.cmd_input.show()
+            self.cmd_input.setFocus()
+            event.accept()
+        else:
+            super().keyPressEvent(event)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.center_command_prompt()
+
+    def center_command_prompt(self):
+        w, h = 340, 38
+        x = (self.width() - w) // 2
+        y = (self.height() - h) // 2
+        self.cmd_input.setGeometry(x, y, w, h)
+
+    def handle_command(self):
+        text = self.cmd_input.text().strip()
+        self.cmd_input.hide()
+        self.cmd_input.clear()
+        if not text:
+            return
+
+        parts = text.replace(',', ' ').split()
+        cmd = parts[0].lower()
+
+        try:
+            if cmd == "gain" and len(parts) >= 2:
+                self.gain = int(parts[1])
+                self.probe.dac(self.gain)
+            elif cmd in ("pon", "poff", "pon/poff") and len(parts) >= 2:
+                val = int(parts[1])
+                self.pon = val
+                self.poff = val
+            elif cmd == "damp" and len(parts) >= 2:
+                self.damp = int(parts[1])
+            elif cmd == "window" and len(parts) >= 3:
+                self.start_us = float(parts[1])
+                self.end_us = float(parts[2])
+                self.plot_widget.setXRange(self.start_us, self.end_us)
+        except ValueError:
+            pass
 
     def update_frame(self):
         pulses = []
@@ -90,8 +147,6 @@ class AScanApp(QtWidgets.QMainWindow):
         
         if len(pulses) < waveform_count:
             return
-        
-        #np.savetxt("pulses.csv", pulses)
 
         sig = np.mean(pulses, axis=0)
         sig_filtered = signal.filtfilt(self.b, self.a, sig)
@@ -115,6 +170,7 @@ class AScanApp(QtWidgets.QMainWindow):
         )
 
         self.curve_env.setData(t_zoom, env_zoom)
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
