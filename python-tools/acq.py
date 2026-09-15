@@ -39,7 +39,7 @@ class AScanApp(QtWidgets.QMainWindow):
         self.gain = 460
         self.pon, self.poff, self.damp = 75, 75, 6000
         self.probe.dac(self.gain)
-        self.start_us, self.end_us = 8, 12.5
+        self.start_us, self.end_us = 0, 24
         
         nyq = self.fs / 2.0
         self.b, self.a = signal.butter(2, [7.5e6 / nyq, 12.5e6 / nyq], btype='bandpass')
