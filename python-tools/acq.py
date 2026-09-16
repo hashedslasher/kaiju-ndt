@@ -42,7 +42,7 @@ class AScanApp(QtWidgets.QMainWindow):
         self.start_us, self.end_us = 0, 24
         
         nyq = self.fs / 2.0
-        self.b, self.a = signal.butter(2, [7.5e6 / nyq, 12.5e6 / nyq], btype='bandpass')
+        self.b, self.a = signal.butter(2, [5e6 / nyq, 15e6 / nyq], btype='bandpass')
         
         self.plot_widget = pg.PlotWidget()
         self.setCentralWidget(self.plot_widget)
@@ -73,7 +73,7 @@ class AScanApp(QtWidgets.QMainWindow):
 
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_frame)
-        self.timer.start(20)
+        self.timer.start(5)
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Colon or event.text() == ':':
@@ -118,6 +118,8 @@ class AScanApp(QtWidgets.QMainWindow):
                 self.start_us = float(parts[1])
                 self.end_us = float(parts[2])
                 self.plot_widget.setXRange(self.start_us, self.end_us)
+            elif cmd == "pulse_rate" and len(parts) >= 2:
+                self.waveform_count = int(parts[1])
         except ValueError:
             pass
 

@@ -11,7 +11,7 @@ import numpy as np
 
 def _find_port():
     if sys.platform.startswith("win"):
-        ports = glob.glob("COM[0-9]*")
+        ports = [p.device for p in serial.tools.list_ports.comports()]
     elif sys.platform.startswith("linux"):
         ports = glob.glob("/dev/ttyACM*") + glob.glob("/dev/ttyUSB*")
     elif sys.platform.startswith("darwin"):  # macOS
