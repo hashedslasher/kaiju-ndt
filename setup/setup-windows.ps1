@@ -29,6 +29,11 @@ if (-not $git) {
     Install-WingetPackage "Git.Git"
 }
 
+$arm = Get-Command arm-none-eabi-gcc -ErrorAction SilentlyContinue
+if (-not $arm) {
+    Install-WingetPackage "Arm.GnuArmEmbeddedToolchain"
+}
+
 $cmake = Get-Command cmake -ErrorAction SilentlyContinue
 if (-not $cmake) {
     Install-WingetPackage "Kitware.CMake"

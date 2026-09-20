@@ -11,7 +11,7 @@
       ```bash
       .\setup-windows.ps1
       ```
-  3. Install qt5 and arm-embedded
+  3. Install [qt5](https://www.qt.io/development/download-qt-installer-oss)
   
   ### Linux
   1. Open a terminal and navigate to kaiju-ndt/setup
