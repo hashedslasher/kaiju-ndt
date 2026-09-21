@@ -25,6 +25,7 @@ The name Kaiju came from a toy that randomly appeared in our lab one day
      brew install python3
      ```
    - **Linux:** Install python with your package manager:
+   
    Debian based:
    ```bash
    sudo apt install python3 python3-pip
@@ -36,7 +37,7 @@ The name Kaiju came from a toy that randomly appeared in our lab one day
 ### Python dependencies
    - Open PowerShell or Terminal and run:
      ```bash
-     pip install pyserial numpy matplotlib scipy h5py picodev
+     pip install -r python-tools/requirements.txt
      ```
 
 3. **Flashing the firmware**
