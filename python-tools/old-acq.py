@@ -1,10 +1,10 @@
 import sys
-import time
 import numpy as np
+from scipy import signal
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtWidgets import QAction
 import pyqtgraph as pg
-from pic0rick.device import Pic0rick
+from lib.ndt_acquisition import get_probe
 
 
 class OverlayLineEdit(QtWidgets.QLineEdit):
@@ -34,30 +34,29 @@ class AScanApp(QtWidgets.QMainWindow):
         self.save_image = QAction('Save Image', self)
         self.file_menu.addAction(self.save_image)
 
-        self.probe = Pic0rick()
-
+        self.probe = get_probe()
         self.fs = 60e6
-        self.gain = 300
-        self.pon, self.poff, self.damp = 75, 75, 6000
-        self.start_us, self.end_us = 0, 24
+        self.gain = 500
+        self.pon, self.poff, self.damp = 35, 35, 8000
+        self.probe.dac(self.gain)
+        self.start_us, self.end_us = 0, 90
         
-        self.avg_count = 7
-        self.envelope_buffer = []
-        
-        self.set_dac(self.gain)
+        nyq = self.fs / 2.0
+        self.b, self.a = signal.butter(2, [8e6 / nyq, 13e6 / nyq], btype='bandpass')
         
         self.plot_widget = pg.PlotWidget()
         self.setCentralWidget(self.plot_widget)
         self.plot_widget.setXRange(self.start_us, self.end_us)
-        self.plot_widget.setYRange(-0.05, 1.1)
+        self.plot_widget.setYRange(-0.05, 1.2)
         self.plot_widget.showGrid(x=True, y=True, alpha=0.3)
         self.plot_widget.setLabel('bottom', 'Time', units='µs')
-        self.plot_widget.setLabel('left', 'Amplitude (Averaged)')
+        self.plot_widget.setLabel('left', 'Amplitude')
         
-        self.curve_signal = self.plot_widget.plot(pen=pg.mkPen(color='white', width=2), name="DSP Envelope")
+        self.curve_env = self.plot_widget.plot(pen=pg.mkPen(color='white', width=2), name="Squared Envelope")
+        self.curve_peaks = self.plot_widget.plot(pen=None, symbol='x', symbolPen='r', symbolBrush='r', symbolSize=12)
 
         self.cmd_input = OverlayLineEdit(self)
-        self.cmd_input.setPlaceholderText("gain, damp, pon, poff, avg <num>, window start end")
+        self.cmd_input.setPlaceholderText("gain, damp, pon, poff, window start end")
         self.cmd_input.setStyleSheet("""
             QLineEdit {
                 background-color: rgba(0, 0, 0, 180);
@@ -74,7 +73,7 @@ class AScanApp(QtWidgets.QMainWindow):
 
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_frame)
-        self.timer.start(30)
+        self.timer.start(5)
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Colon or event.text() == ':':
@@ -95,14 +94,6 @@ class AScanApp(QtWidgets.QMainWindow):
         y = (self.height() - h) // 2
         self.cmd_input.setGeometry(x, y, w, h)
 
-    def set_dac(self, gain):
-        self.gain = gain
-        if hasattr(self.probe, 'set_gain'):
-            try:
-                self.probe.set_gain(self.gain)
-            except Exception as e:
-                print(f"Error setting gain: {e}")
-
     def handle_command(self):
         text = self.cmd_input.text().strip()
         self.cmd_input.hide()
@@ -115,60 +106,72 @@ class AScanApp(QtWidgets.QMainWindow):
 
         try:
             if cmd == "gain" and len(parts) >= 2:
-                self.set_dac(int(parts[1]))
+                self.gain = int(parts[1])
+                self.probe.dac(self.gain)
             elif cmd in ("pon", "poff", "pon/poff") and len(parts) >= 2:
                 val = int(parts[1])
                 self.pon = val
                 self.poff = val
             elif cmd == "damp" and len(parts) >= 2:
                 self.damp = int(parts[1])
-            elif cmd == "avg" and len(parts) >= 2:
-                self.avg_count = max(1, int(parts[1]))
-                self.envelope_buffer.clear()
             elif cmd == "window" and len(parts) >= 3:
                 self.start_us = float(parts[1])
                 self.end_us = float(parts[2])
                 self.plot_widget.setXRange(self.start_us, self.end_us)
+            elif cmd == "pulse_rate" and len(parts) >= 2:
+                self.waveform_count = int(parts[1])
         except ValueError:
             pass
 
     def update_frame(self):
-        if not hasattr(self, 'probe') or self.probe is None:
+        pulses = []
+        waveform_count = 10
+        
+        SAMPLE_COUNT = 8000
+        BYTES_PER_PULSE = SAMPLE_COUNT * 2 
+        
+        for _ in range(waveform_count):
+            self.probe.ser.reset_input_buffer()
+            
+            cmd = f"start acq {self.pon} {self.poff} {self.damp}\n"
+            self.probe.ser.write(bytearray(cmd, 'ascii'))
+            self.probe.ser.flush()
+            
+            raw_bytes = self.probe.ser.read(BYTES_PER_PULSE)
+            
+            if len(raw_bytes) == BYTES_PER_PULSE:
+                raw_ints = np.frombuffer(raw_bytes, dtype=np.uint16)
+                shifted_ints = (raw_ints >> 1) & 0x3FF
+                normalized = (shifted_ints.astype(np.float32) - 512.0) / 512.0
+                pulses.append(normalized)
+            else:
+                print(f"Expected {BYTES_PER_PULSE} bytes, got {len(raw_bytes)}")
+        
+        if len(pulses) < waveform_count:
             return
 
-        try:
-            self.probe.configure_pulse(
-                negative_ns=self.pon, 
-                damp_ns=self.damp, 
-                positive_ns=self.poff, 
-                order="pos-first"
-            )
-            self.probe.arm_pulser()
+        sig = np.mean(pulses, axis=0)
+        sig_filtered = signal.filtfilt(self.b, self.a, sig)
 
-            frame = self.probe.read_fft()
-            samples = frame.samples() if hasattr(frame, 'samples') else frame
-            if samples is None or len(samples) == 0:
-                return
+        envelope = np.abs(signal.hilbert(sig_filtered))
+        env_norm = envelope / (np.max(envelope) + 1e-9)
+        env_squared = env_norm ** 2
+        
+        t = np.arange(len(sig)) / self.fs * 1e6   
+        mask = (t >= self.start_us) & (t <= self.end_us)
+        t_zoom, env_zoom = t[mask], env_squared[mask]
 
-            env = samples.astype(np.float32)
-            max_val = np.max(env)
-            env_norm = env / (max_val if max_val > 0 else 1.0)
+        if env_zoom.size == 0:
+            return
 
-            self.envelope_buffer.append(env_norm)
-            if len(self.envelope_buffer) > self.avg_count:
-                self.envelope_buffer.pop(0)
-            
-            averaged_env = np.mean(self.envelope_buffer, axis=0)
+        peaks, _ = signal.find_peaks(
+            env_zoom,
+            height=0.15,
+            distance=int(0.4e-6 * self.fs),
+            prominence=0.08
+        )
 
-            t = np.arange(len(averaged_env)) * (8000 / len(averaged_env)) / self.fs * 1e6   
-            mask = (t >= self.start_us) & (t <= self.end_us)
-            t_zoom, env_zoom = t[mask], averaged_env[mask]
-
-            if env_zoom.size > 0:
-                self.curve_signal.setData(t_zoom, env_zoom)
-
-        except Exception as e:
-            pass
+        self.curve_env.setData(t_zoom, env_zoom)
 
 
 if __name__ == '__main__':
