@@ -36,7 +36,6 @@ void motor_setup() {
     
     gpio_set_dir(EN_PIN,   GPIO_OUT);
 
-    // Initial states
     gpio_put(EN_PIN,   0);
     
     gpio_put(STEP_PIN_X, 0);
