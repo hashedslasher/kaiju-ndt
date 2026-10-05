@@ -25,12 +25,12 @@ command_t command_list[] = {
     {"set mux", max14866_set},
     {"clear mux", max14866_clear},
     {"read", adc},
-    {"move x plus"},
-    {"move x minus"},
-    {"move y plus"},
-    {"move y minus"},
-    {"move x up"},
-    {"move x down"},
+    {"move x plus", move_x_plus},
+    {"move x minus", move_x_minus},
+    {"move y plus", move_y_plus},
+    {"move y minus", move_y_minus},
+    {"move z up", move_z_plus},
+    {"move z down", move_z_minus},
 };
 
 void process_command(char *input)
@@ -108,6 +108,14 @@ int main()
     sleep_ms(100);
     max14866_init();
     sleep_ms(100);
+    motor_setup();
+    sleep_ms(100);
+    move_x_plus();
+    move_x_minus();
+    move_y_plus();
+    move_y_minus();
+    move_z_plus();
+    move_z_minus();
 
     char input[128];
     while (true)

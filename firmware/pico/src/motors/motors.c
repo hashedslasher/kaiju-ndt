@@ -10,7 +10,7 @@
 
 #define EN_PIN    28
 
-#define STEPS_PER_REV  3200
+//#define STEPS_PER_REV  3200
 #define PULSE_US  1000
 
 void motor_setup() {
@@ -50,7 +50,7 @@ void motor_setup() {
 
 void move_x_plus () {
     gpio_put(DIR_PIN_X, 1);
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 3200; i++) {
         gpio_put(STEP_PIN_X, 1);
         sleep_us(PULSE_US);
         gpio_put(STEP_PIN_X, 0);
@@ -60,7 +60,7 @@ void move_x_plus () {
 
 void move_x_minus () {
     gpio_put(DIR_PIN_X, 0);
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 3200; i++) {
         gpio_put(STEP_PIN_X, 1);
         sleep_us(PULSE_US);
         gpio_put(STEP_PIN_X, 0);
@@ -70,7 +70,7 @@ void move_x_minus () {
 
 void move_y_plus () {
     gpio_put(DIR_PIN_Y, 1);
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 3200; i++) {
         gpio_put(STEP_PIN_Y, 1);
         sleep_us(PULSE_US);
         gpio_put(STEP_PIN_Y, 0);
@@ -80,7 +80,7 @@ void move_y_plus () {
 
 void move_y_minus () {
     gpio_put(DIR_PIN_Y, 0);
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 3200; i++) {
         gpio_put(STEP_PIN_Y, 1);
         sleep_us(PULSE_US);
         gpio_put(STEP_PIN_Y, 0);
@@ -90,7 +90,7 @@ void move_y_minus () {
 
 void move_z_plus () {
     gpio_put(DIR_PIN_Z, 1);
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 3200; i++) {
         gpio_put(STEP_PIN_Z, 1);
         sleep_us(PULSE_US);
         gpio_put(STEP_PIN_Z, 0);
@@ -100,7 +100,7 @@ void move_z_plus () {
 
 void move_z_minus () {
     gpio_put(DIR_PIN_Z, 0);
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 3200; i++) {
         gpio_put(STEP_PIN_Z, 1);
         sleep_us(PULSE_US);
         gpio_put(STEP_PIN_Z, 0);
