@@ -3,6 +3,7 @@
 //--------------------------------------------------------------------------
 #include "adc/adc.h"
 #include "max/max14866.h"
+#include "motors/motors.h"
 #include "../external/pico_fast_serial/fast_serial.h"
 
 //---------------------------------------------------------------------------
@@ -24,6 +25,12 @@ command_t command_list[] = {
     {"set mux", max14866_set},
     {"clear mux", max14866_clear},
     {"read", adc},
+    {"move x plus"},
+    {"move x minus"},
+    {"move y plus"},
+    {"move y minus"},
+    {"move x up"},
+    {"move x down"},
 };
 
 void process_command(char *input)

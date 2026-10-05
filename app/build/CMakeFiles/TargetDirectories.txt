@@ -1,0 +1,5 @@
+/mnt/tsb-2tb/projects/u-ndt/app/build/CMakeFiles/kaiju-viewer.dir
+/mnt/tsb-2tb/projects/u-ndt/app/build/CMakeFiles/edit_cache.dir
+/mnt/tsb-2tb/projects/u-ndt/app/build/CMakeFiles/rebuild_cache.dir
+/mnt/tsb-2tb/projects/u-ndt/app/build/CMakeFiles/kaiju-viewer_autogen_timestamp_deps.dir
+/mnt/tsb-2tb/projects/u-ndt/app/build/CMakeFiles/kaiju-viewer_autogen.dir

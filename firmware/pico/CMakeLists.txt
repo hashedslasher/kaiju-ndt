@@ -58,6 +58,7 @@ pico_generate_pio_header(adc-pulse ${CMAKE_CURRENT_LIST_DIR}/src/max/max14866.pi
 target_sources(adc-pulse PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/src/main.c
     ${CMAKE_CURRENT_LIST_DIR}/src/adc/adc.c
+    ${CMAKE_CURRENT_LIST_DIR}/src/motors/motors.c
     ${CMAKE_CURRENT_LIST_DIR}/src/max/max14866.c
     ${CMAKE_CURRENT_LIST_DIR}/external/pico_fast_serial/fast_serial.c
 )

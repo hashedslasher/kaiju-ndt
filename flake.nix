@@ -38,7 +38,7 @@
           };
 
           pythonEnv = pkgs.python313.withPackages (ps: with ps; [
-            numpy pyserial matplotlib h5py scipy pyqt5 pyqtgraph ipython
+            numpy pyserial matplotlib h5py scipy pyqt5 pyqtgraph
           ]);
 
           qtEnv = pkgs.qt5.env "qt5-dev" [
