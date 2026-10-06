@@ -7,17 +7,14 @@ import pyqtgraph as pg
 from lib.ndt_acquisition import get_probe
 from PyQt5.QtWidgets import QWidget, QApplication
 from PyQt5.QtCore import Qt
-from lib.device import Pic0rick
 
 
 class OverlayLineEdit(QtWidgets.QLineEdit):
-    """Command prompt"""
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Escape:
             self.clear()
             self.hide()
             event.accept()
-
         else:
             super().keyPressEvent(event)
 
@@ -25,8 +22,6 @@ class OverlayLineEdit(QtWidgets.QLineEdit):
 class AScanApp(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
-
-        self.pic = Pic0rick()
 
         self.setWindowTitle("A-scan")
         self.resize(900, 450)
@@ -47,6 +42,7 @@ class AScanApp(QtWidgets.QMainWindow):
         self.pon, self.poff, self.damp = 75, 75, 6000
 
         self.probe.dac(self.gain)
+        self.check_pico_messages()
 
         self.start_us, self.end_us = 0, 24
 
@@ -111,33 +107,33 @@ class AScanApp(QtWidgets.QMainWindow):
             event.accept()
 
         elif event.key() == QtCore.Qt.Key_W:
-            self.pic.ser.write(b"move y minus\n")
-            self.pic.ser.flush()
+            self.probe.ser.write(b"move y minus\n")
+            self.probe.ser.flush()
             event.accept()
 
         elif event.key() == QtCore.Qt.Key_A:
-            self.pic.ser.write(b"move x plus\n")
-            self.pic.ser.flush()
+            self.probe.ser.write(b"move x plus\n")
+            self.probe.ser.flush()
             event.accept()
 
         elif event.key() == QtCore.Qt.Key_S:
-            self.pic.ser.write(b"move y plus\n")
-            self.pic.ser.flush()
+            self.probe.ser.write(b"move y plus\n")
+            self.probe.ser.flush()
             event.accept()
 
         elif event.key() == QtCore.Qt.Key_D:
-            self.pic.ser.write(b"move x minus\n")
-            self.pic.ser.flush()
+            self.probe.ser.write(b"move x minus\n")
+            self.probe.ser.flush()
             event.accept()
 
         elif event.key() == QtCore.Qt.Key_J:
-            self.pic.ser.write(b"move z up\n")
-            self.pic.ser.flush()
+            self.probe.ser.write(b"move z up\n")
+            self.probe.ser.flush()
             event.accept()
 
         elif event.key() == QtCore.Qt.Key_K:
-            self.pic.ser.write(b"move z down\n")
-            self.pic.ser.flush()
+            self.probe.ser.write(b"move z down\n")
+            self.probe.ser.flush()
             event.accept()
 
         else:
@@ -152,6 +148,16 @@ class AScanApp(QtWidgets.QMainWindow):
         x = (self.width() - w) // 2
         y = (self.height() - h) // 2
         self.cmd_input.setGeometry(x, y, w, h)
+
+    def check_pico_messages(self):
+        while self.probe.ser.in_waiting > 0:
+            try:
+                line = self.probe.ser.readline().decode(errors='ignore').strip()
+                if line:
+                    int(line)
+                    continue
+            except ValueError:
+                print(f"[PICO] {line}")
 
     def handle_command(self):
         text = self.cmd_input.text().strip()
@@ -169,6 +175,7 @@ class AScanApp(QtWidgets.QMainWindow):
             if cmd == "gain" and len(parts) >= 2:
                 self.gain = int(parts[1])
                 self.probe.dac(self.gain)
+                self.check_pico_messages()
 
             elif cmd in ("pon", "poff", "pon/poff") and len(parts) >= 2:
                 val = int(parts[1])
@@ -200,6 +207,8 @@ class AScanApp(QtWidgets.QMainWindow):
         BYTES_PER_PULSE = SAMPLE_COUNT * 2
 
         for _ in range(waveform_count):
+            
+            self.check_pico_messages()
             self.probe.ser.reset_input_buffer()
 
             cmd = (
@@ -288,4 +297,3 @@ if __name__ == '__main__':
     window.show()
 
     sys.exit(app.exec_())
-

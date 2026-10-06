@@ -25,12 +25,9 @@ command_t command_list[] = {
     {"set mux", max14866_set},
     {"clear mux", max14866_clear},
     {"read", adc},
-    {"move x plus", move_x_plus},
-    {"move x minus", move_x_minus},
-    {"move y plus", move_y_plus},
-    {"move y minus", move_y_minus},
-    {"move z up", move_z_plus},
-    {"move z down", move_z_minus},
+    {"move x", move_x},
+    {"move y", move_y},
+    {"move z", move_z},
 };
 
 void process_command(char *input)
@@ -94,7 +91,6 @@ void read_input(char *buffer, int max_len)
 int main()
 {
     fast_serial_init();
-
     while (!tud_mounted())
     {
         tud_task();
@@ -109,13 +105,6 @@ int main()
     max14866_init();
     sleep_ms(100);
     motor_setup();
-    sleep_ms(100);
-    move_x_plus();
-    move_x_minus();
-    move_y_plus();
-    move_y_minus();
-    move_z_plus();
-    move_z_minus();
 
     char input[128];
     while (true)

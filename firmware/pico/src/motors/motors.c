@@ -1,4 +1,6 @@
 #include "pico/stdlib.h"
+#include "stdio.h"
+#include "string.h"
 #include "hardware/gpio.h"
 
 #define STEP_PIN_X  18
@@ -48,8 +50,18 @@ void motor_setup() {
     gpio_put(DIR_PIN_Z,  0);
 }
 
-void move_x_plus () {
-    gpio_put(DIR_PIN_X, 1);
+void move_x(const char *args) {
+    if (strcmp(args, "plus") == 0) {
+        gpio_put(DIR_PIN_X, 1);
+        printf("move_x plus\n");
+    } else if (strcmp(args, "minus") == 0) {
+        gpio_put(DIR_PIN_X, 0);
+        printf("move_x minus\n");
+    } else {
+        printf("Invalid argument. Use 'plus' or 'minus'.\n");
+        return;
+    }
+
     for (int i = 0; i < 3200; i++) {
         gpio_put(STEP_PIN_X, 1);
         sleep_us(PULSE_US);
@@ -58,18 +70,16 @@ void move_x_plus () {
     }
 }
 
-void move_x_minus () {
-    gpio_put(DIR_PIN_X, 0);
-    for (int i = 0; i < 3200; i++) {
-        gpio_put(STEP_PIN_X, 1);
-        sleep_us(PULSE_US);
-        gpio_put(STEP_PIN_X, 0);
-        sleep_us(PULSE_US);
+void move_y(const char *args) {
+    if (strcmp(args, "plus") == 0) {
+        gpio_put(DIR_PIN_Y, 1);
+    } else if (strcmp(args, "minus") == 0) {
+        gpio_put(DIR_PIN_Y, 0);
+    } else {
+        printf("Invalid argument. Use 'plus' or 'minus'.\n");
+        return;
     }
-}
 
-void move_y_plus () {
-    gpio_put(DIR_PIN_Y, 1);
     for (int i = 0; i < 3200; i++) {
         gpio_put(STEP_PIN_Y, 1);
         sleep_us(PULSE_US);
@@ -78,28 +88,16 @@ void move_y_plus () {
     }
 }
 
-void move_y_minus () {
-    gpio_put(DIR_PIN_Y, 0);
-    for (int i = 0; i < 3200; i++) {
-        gpio_put(STEP_PIN_Y, 1);
-        sleep_us(PULSE_US);
-        gpio_put(STEP_PIN_Y, 0);
-        sleep_us(PULSE_US);
+void move_z(const char *args) {
+    if (strcmp(args, "up") == 0 || strcmp(args, "plus") == 0) {
+        gpio_put(DIR_PIN_Z, 1);
+    } else if (strcmp(args, "down") == 0 || strcmp(args, "minus") == 0) {
+        gpio_put(DIR_PIN_Z, 0);
+    } else {
+        printf("Invalid argument. Use 'up' or 'down'.\n");
+        return;
     }
-}
 
-void move_z_plus () {
-    gpio_put(DIR_PIN_Z, 1);
-    for (int i = 0; i < 3200; i++) {
-        gpio_put(STEP_PIN_Z, 1);
-        sleep_us(PULSE_US);
-        gpio_put(STEP_PIN_Z, 0);
-        sleep_us(PULSE_US);
-    }
-}
-
-void move_z_minus () {
-    gpio_put(DIR_PIN_Z, 0);
     for (int i = 0; i < 3200; i++) {
         gpio_put(STEP_PIN_Z, 1);
         sleep_us(PULSE_US);
