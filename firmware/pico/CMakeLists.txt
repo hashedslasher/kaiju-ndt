@@ -54,6 +54,7 @@ pico_enable_stdio_usb(adc-pulse 0)
 
 pico_generate_pio_header(adc-pulse ${CMAKE_CURRENT_LIST_DIR}/src/adc/adc.pio)
 pico_generate_pio_header(adc-pulse ${CMAKE_CURRENT_LIST_DIR}/src/max/max14866.pio)
+pico_generate_pio_header(adc-pulse ${CMAKE_CURRENT_LIST_DIR}/src/motors/motors.pio)
 
 target_sources(adc-pulse PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/src/main.c

@@ -95,49 +95,115 @@ class AScanApp(QtWidgets.QMainWindow):
         self.cmd_input.hide()
         self.cmd_input.returnPressed.connect(self.handle_command)
 
+        self.movement_keys = {
+            QtCore.Qt.Key_W,
+            QtCore.Qt.Key_A,
+            QtCore.Qt.Key_S,
+            QtCore.Qt.Key_D,
+            QtCore.Qt.Key_J,
+            QtCore.Qt.Key_K,
+        }
+        self.keys_down = set()
+
+        self.hold_delay_ms = 350
+        self.repeat_interval_ms = 100
+
+        self.hold_timer = QtCore.QTimer(self)
+        self.hold_timer.setSingleShot(True)
+        self.hold_timer.timeout.connect(self.begin_repeat)
+
+        self.repeat_timer = QtCore.QTimer(self)
+        self.repeat_timer.setInterval(self.repeat_interval_ms)
+        self.repeat_timer.timeout.connect(self.send_movement)
+
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_frame)
         self.timer.start(5)
 
     def keyPressEvent(self, event):
-        if event.key() == QtCore.Qt.Key_Colon or event.text() == ':':
+        key = event.key()
+
+        if key == QtCore.Qt.Key_Colon or event.text() == ':':
             self.center_command_prompt()
             self.cmd_input.show()
             self.cmd_input.setFocus()
             event.accept()
+            return
 
-        elif event.key() == QtCore.Qt.Key_W:
-            self.probe.ser.write(b"move y minus\n")
-            self.probe.ser.flush()
+        if key in self.movement_keys:
+            if event.isAutoRepeat():
+                event.accept()
+                return
+
+            first_key = not self.keys_down
+            self.keys_down.add(key)
+
+            self.send_movement()
+
+            if first_key:
+                self.hold_timer.start(self.hold_delay_ms)
+
             event.accept()
+            return
 
-        elif event.key() == QtCore.Qt.Key_A:
-            self.probe.ser.write(b"move x plus\n")
-            self.probe.ser.flush()
+        super().keyPressEvent(event)
+
+    def keyReleaseEvent(self, event):
+        key = event.key()
+
+        if key in self.movement_keys:
+            if not event.isAutoRepeat():
+                was_down = key in self.keys_down
+                self.keys_down.discard(key)
+
+                if was_down and self.keys_down:
+                    self.send_movement()
+                elif was_down and not self.keys_down:
+                    self.hold_timer.stop()
+                    self.repeat_timer.stop()
+
             event.accept()
+            return
 
-        elif event.key() == QtCore.Qt.Key_S:
-            self.probe.ser.write(b"move y plus\n")
-            self.probe.ser.flush()
-            event.accept()
+        super().keyReleaseEvent(event)
 
-        elif event.key() == QtCore.Qt.Key_D:
-            self.probe.ser.write(b"move x minus\n")
-            self.probe.ser.flush()
-            event.accept()
+    def begin_repeat(self):
+        """Start periodic movement commands after the initial hold delay."""
+        if self.keys_down:
+            self.send_movement()
+            self.repeat_timer.start()
 
-        elif event.key() == QtCore.Qt.Key_J:
-            self.probe.ser.write(b"move z up\n")
-            self.probe.ser.flush()
-            event.accept()
+    def send_movement(self):
+        """Send one newline-terminated firmware command per active axis."""
+        commands = []
 
-        elif event.key() == QtCore.Qt.Key_K:
-            self.probe.ser.write(b"move z down\n")
-            self.probe.ser.flush()
-            event.accept()
+        key_a = QtCore.Qt.Key_A in self.keys_down
+        key_d = QtCore.Qt.Key_D in self.keys_down
+        if key_a and not key_d:
+            commands.append("move x plus")
+        elif key_d and not key_a:
+            commands.append("move x minus")
 
-        else:
-            super().keyPressEvent(event)
+        key_w = QtCore.Qt.Key_W in self.keys_down
+        key_s = QtCore.Qt.Key_S in self.keys_down
+        if key_w and not key_s:
+            commands.append("move y minus")
+        elif key_s and not key_w:
+            commands.append("move y plus")
+
+        key_j = QtCore.Qt.Key_J in self.keys_down
+        key_k = QtCore.Qt.Key_K in self.keys_down
+        if key_j and not key_k:
+            commands.append("move z up")
+        elif key_k and not key_j:
+            commands.append("move z down")
+
+        if not commands:
+            return
+
+        payload = ("\n".join(commands) + "\n").encode("ascii")
+        self.probe.ser.write(payload)
+        self.probe.ser.flush()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -297,3 +363,4 @@ if __name__ == '__main__':
     window.show()
 
     sys.exit(app.exec_())
+

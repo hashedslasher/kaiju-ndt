@@ -1,0 +1,14 @@
+.program stepper_ctrl
+.side_set 1 opt
+
+    pull block
+    mov x, osr
+
+    set pins, 1
+    set y, 31
+high_delay:
+    jmp y-- high_delay
+
+    set pins, 0
+low_delay:
+    jmp x-- low_delay
