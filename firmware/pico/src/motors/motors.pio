@@ -1,8 +1,13 @@
 .program stepper_ctrl
-.side_set 1 opt
 
+.wrap_target
     pull block
+    out pins, 1
     mov x, osr
+
+    set y, 23 [31]
+dir_setup:
+    jmp y-- dir_setup [31]
 
     set pins, 1
     set y, 31
@@ -12,3 +17,25 @@ high_delay:
     set pins, 0
 low_delay:
     jmp x-- low_delay
+.wrap
+
+% c-sdk {
+static inline void stepper_ctrl_program_init(PIO pio, uint sm, uint offset,
+                                              uint step_pin, uint dir_pin,
+                                              float div) {
+    pio_gpio_init(pio, step_pin);
+    pio_gpio_init(pio, dir_pin);
+
+    pio_sm_set_consecutive_pindirs(pio, sm, step_pin, 1, true);
+    pio_sm_set_consecutive_pindirs(pio, sm, dir_pin, 1, true);
+
+    pio_sm_config c = stepper_ctrl_program_get_default_config(offset);
+    sm_config_set_set_pins(&c, step_pin, 1);
+    sm_config_set_out_pins(&c, dir_pin, 1);
+    sm_config_set_out_shift(&c, true, false, 32);
+    sm_config_set_clkdiv(&c, div);
+
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+%}

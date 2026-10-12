@@ -60,7 +60,7 @@ class Pic0rick:
         port_device = port if port is not None else _find_port()
         print("Device on", port_device)
 
-        self.ser = serial.Serial(port_device, 115200, timeout=0.2)
+        self.ser = serial.Serial(port_device, 115200, timeout=4.0)
         self.ser.baudrate = 115200
         time.sleep(1)  # wait for the serial connection to initialize
         self.sread()

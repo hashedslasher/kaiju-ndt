@@ -18,7 +18,7 @@ extern "C" {
 #define DIR_PIN_Z   26
 #define EN_PIN      28
 
-#define MAX_STEPS       5000 
+#define MAX_STEPS       5000
 #define START_FREQ_HZ   100
 #define MAX_RAMP_STEPS  100
 
@@ -34,9 +34,19 @@ extern PIO motor_pio;
 extern uint motor_pio_offset;
 
 void motor_setup(void);
+void motor_service(void);
+
 void move_x(const char *args);
 void move_y(const char *args);
 void move_z(const char *args);
+
+void jog_x(const char *args);
+void jog_y(const char *args);
+void jog_z(const char *args);
+
+void stop_x(const char *args);
+void stop_y(const char *args);
+void stop_z(const char *args);
 
 void init_motor_sm(PIO pio, uint sm, uint offset, uint step_pin, uint dir_pin);
 void start_dma(PIO pio, uint sm, int dma_chan, uint32_t* profile, uint32_t steps);

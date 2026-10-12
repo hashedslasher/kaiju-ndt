@@ -2,8 +2,8 @@
 // INCLUDES
 //--------------------------------------------------------------------------
 #include "adc/adc.h"
-#include "max/max14866.h"
 #include "motors/motors.h"
+#include "dac/dac.h"
 #include "../external/pico_fast_serial/fast_serial.h"
 
 //---------------------------------------------------------------------------
@@ -21,52 +21,53 @@ typedef struct
 command_t command_list[] = {
     {"start acq", pulse_adc_trigger},
     {"write dac", dac},
-    {"write mux", max14866},
-    {"set mux", max14866_set},
-    {"clear mux", max14866_clear},
     {"read", adc},
-    {"move x", move_x},
-    {"move y", move_y},
-    {"move z", move_z},
+    {"move_x", move_x},
+    {"move_y", move_y},
+    {"move_z", move_z},
+    {"jog_x", jog_x},
+    {"jog_y", jog_y},
+    {"jog_z", jog_z},
+    {"stop_x", stop_x},
+    {"stop_y", stop_y},
+    {"stop_z", stop_z},
 };
 
 void process_command(char *input)
 {
     char *command = strtok(input, " \r\n");
+    if (command == NULL) {
+        return;
+    }
+
+    /* First accept one-word commands such as move_x/jog_x/stop_x/read. */
+    for (int i = 0; i < (int)(sizeof(command_list) / sizeof(command_t)); ++i) {
+        if (strcmp(command, command_list[i].command_name) == 0) {
+            char *args = strtok(NULL, "\r\n");
+            command_list[i].func(args ? args : "0");
+            return;
+        }
+    }
+
+    /* Preserve the existing two-word commands such as "start acq" and "write dac". */
     char *subcommand = strtok(NULL, " \r\n");
-    char *args = strtok(NULL, "\r\n");
-    
-    if (command != NULL && subcommand != NULL)
-    {
+    if (subcommand != NULL) {
         char full_command[50];
         snprintf(full_command, sizeof(full_command), "%s %s", command, subcommand);
 
-        for (int i = 0; i < sizeof(command_list) / sizeof(command_t); i++)
-        {
-            if (strcmp(full_command, command_list[i].command_name) == 0)
-            {
-                if (args == NULL)
-                {
-                    args = "0";
-                }
-                command_list[i].func(args);
+        for (int i = 0; i < (int)(sizeof(command_list) / sizeof(command_t)); ++i) {
+            if (strcmp(full_command, command_list[i].command_name) == 0) {
+                char *args = strtok(NULL, "\r\n");
+                command_list[i].func(args ? args : "0");
                 return;
             }
         }
+
         printf("Unknown command: %s %s\n", command, subcommand);
+        return;
     }
-    else if (command != NULL)
-    {
-        for (int i = 0; i < sizeof(command_list) / sizeof(command_t); i++)
-        {
-            if (strcmp(command, command_list[i].command_name) == 0)
-            {
-                command_list[i].func(args);
-                return;
-            }
-        }
-        printf("Unknown command: %s\n", command);
-    }
+
+    printf("Unknown command: %s\n", command);
 }
 
 void read_input(char *buffer, int max_len)
@@ -102,16 +103,13 @@ int main()
     sleep_ms(100);
     dac_init();
     sleep_ms(100);
-    max14866_init();
-    sleep_ms(100);
     motor_setup();
 
     char input[128];
     while (true)
     {
         fast_serial_task();
-        
-        
+        motor_service();
         read_input(input, sizeof(input));
         if (input[0] != '\0')
         {

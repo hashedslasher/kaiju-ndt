@@ -9,6 +9,59 @@ from PyQt5.QtWidgets import QWidget, QApplication
 from PyQt5.QtCore import Qt
 
 
+try:
+    import pygame
+    from pygame._sdl2 import controller as sdl_controller
+except ImportError:
+    pygame = None
+    sdl_controller = None
+
+
+GAMEPAD_DEADZONE = 0.25
+GAMEPAD_POLL_MS = 50
+
+
+GAMEPAD_MAX_SPEED_HZ = {"x": 5000, "y": 5000, "z": 500}
+GAMEPAD_MIN_SPEED_HZ = 100
+GAMEPAD_SPEED_STEP_HZ = 50
+
+
+def stick_deflection(raw_value):
+
+    value = max(-32768, min(32767, raw_value))
+    value /= 32768.0 if value < 0 else 32767.0
+    magnitude = abs(value)
+    if magnitude <= GAMEPAD_DEADZONE:
+        return 0.0
+    scaled = (magnitude - GAMEPAD_DEADZONE) / (1.0 - GAMEPAD_DEADZONE)
+    return scaled if value > 0 else -scaled
+
+
+def gamepad_jog_command(axis, deflection):
+
+    if deflection == 0:
+        return f"stop_{axis}"
+
+    max_speed = int(GAMEPAD_MAX_SPEED_HZ[axis])
+    if max_speed <= 0:
+        return f"stop_{axis}"
+
+    min_speed = min(GAMEPAD_MIN_SPEED_HZ, max_speed)
+    travel = min(1.0, abs(deflection))
+    speed = min_speed + (max_speed - min_speed) * travel
+
+    speed = int(round(speed / GAMEPAD_SPEED_STEP_HZ)) * GAMEPAD_SPEED_STEP_HZ
+    speed = max(min_speed, min(max_speed, speed))
+
+
+    negative, positive = {
+        "x": ("plus", "minus"),
+        "y": ("minus", "plus"),
+        "z": ("up", "down"),
+    }[axis]
+    return f"jog_{axis} {positive if deflection > 0 else negative} {speed}"
+
+
 class OverlayLineEdit(QtWidgets.QLineEdit):
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Escape:
@@ -104,26 +157,108 @@ class AScanApp(QtWidgets.QMainWindow):
             QtCore.Qt.Key_K,
         }
         self.keys_down = set()
+        self.key_press_order = {}
+        self.next_key_press = 0
+        self.last_movement_commands = {
+            "x": "stop_x",
+            "y": "stop_y",
+            "z": "stop_z",
+        }
 
-        self.hold_delay_ms = 350
-        self.repeat_interval_ms = 100
-
-        self.hold_timer = QtCore.QTimer(self)
-        self.hold_timer.setSingleShot(True)
-        self.hold_timer.timeout.connect(self.begin_repeat)
-
-        self.repeat_timer = QtCore.QTimer(self)
-        self.repeat_timer.setInterval(self.repeat_interval_ms)
-        self.repeat_timer.timeout.connect(self.send_movement)
+        self.controller_axes = {"x": 0.0, "y": 0.0, "z": 0.0}
+        self.controller_armed = False
+        self.controller = None
+        self.controller_enabled = False
+        self.init_controller()
 
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_frame)
-        self.timer.start(5)
+        self.timer.start(1000)
+
+    def init_controller(self):
+
+        if pygame is None:
+            return
+
+        try:
+            pygame.display.init()
+            sdl_controller.init()
+        except pygame.error as exc:
+            print(f"[Controller] Input unavailable: {exc}")
+            return
+
+        self.controller_enabled = True
+        self.controller_timer = QtCore.QTimer(self)
+        self.controller_timer.timeout.connect(self.poll_controller)
+        self.controller_timer.start(GAMEPAD_POLL_MS)
+        self.poll_controller()
+
+    def release_controller(self):
+
+        self.controller_armed = False
+        if self.controller is not None:
+            self.controller.quit()
+            self.controller = None
+        self.set_controller_axes(0, 0, 0)
+
+    def set_controller_axes(self, x, y, z):
+        directions = {"x": x, "y": y, "z": z}
+        if directions != self.controller_axes:
+            self.controller_axes = directions
+            self.send_movement()
+
+    def poll_controller(self):
+
+        if not self.controller_enabled:
+            return
+
+        try:
+            pygame.event.pump()
+            pygame.event.clear()
+
+            if self.controller is not None and not self.controller.attached():
+                print("[Controller] Disconnected")
+                self.release_controller()
+                return
+
+            if self.controller is None:
+                for index in range(sdl_controller.get_count()):
+                    if sdl_controller.is_controller(index):
+                        self.controller = sdl_controller.Controller(index)
+                        self.controller_armed = False
+                        print(f"[Controller] Connected: {sdl_controller.name_forindex(index)}")
+                        break
+
+            if self.controller is None:
+                return
+
+            x = stick_deflection(self.controller.get_axis(pygame.CONTROLLER_AXIS_LEFTX))
+            y = stick_deflection(self.controller.get_axis(pygame.CONTROLLER_AXIS_LEFTY))
+            z = stick_deflection(self.controller.get_axis(pygame.CONTROLLER_AXIS_RIGHTY))
+
+
+            if self.cmd_input.isVisible() or not self.isActiveWindow():
+                self.controller_armed = False
+                self.set_controller_axes(0, 0, 0)
+                return
+
+
+            if not self.controller_armed:
+                if (x, y, z) == (0, 0, 0):
+                    self.controller_armed = True
+                self.set_controller_axes(0, 0, 0)
+                return
+
+            self.set_controller_axes(x, y, z)
+        except (pygame.error, OSError) as exc:
+            print(f"[Controller] Read error: {exc}")
+            self.release_controller()
 
     def keyPressEvent(self, event):
         key = event.key()
 
         if key == QtCore.Qt.Key_Colon or event.text() == ':':
+            self.stop_manual_motion()
             self.center_command_prompt()
             self.cmd_input.show()
             self.cmd_input.setFocus()
@@ -135,13 +270,10 @@ class AScanApp(QtWidgets.QMainWindow):
                 event.accept()
                 return
 
-            first_key = not self.keys_down
             self.keys_down.add(key)
-
+            self.next_key_press += 1
+            self.key_press_order[key] = self.next_key_press
             self.send_movement()
-
-            if first_key:
-                self.hold_timer.start(self.hold_delay_ms)
 
             event.accept()
             return
@@ -155,55 +287,74 @@ class AScanApp(QtWidgets.QMainWindow):
             if not event.isAutoRepeat():
                 was_down = key in self.keys_down
                 self.keys_down.discard(key)
+                self.key_press_order.pop(key, None)
 
-                if was_down and self.keys_down:
+                if was_down:
                     self.send_movement()
-                elif was_down and not self.keys_down:
-                    self.hold_timer.stop()
-                    self.repeat_timer.stop()
 
             event.accept()
             return
 
         super().keyReleaseEvent(event)
 
-    def begin_repeat(self):
-        """Start periodic movement commands after the initial hold delay."""
-        if self.keys_down:
-            self.send_movement()
-            self.repeat_timer.start()
+    def stop_manual_motion(self):
+
+        self.keys_down.clear()
+        self.key_press_order.clear()
+        self.controller_armed = False
+        self.set_controller_axes(0, 0, 0)
+        self.send_movement()
 
     def send_movement(self):
-        """Send one newline-terminated firmware command per active axis."""
-        commands = []
 
-        key_a = QtCore.Qt.Key_A in self.keys_down
-        key_d = QtCore.Qt.Key_D in self.keys_down
-        if key_a and not key_d:
-            commands.append("move x plus")
-        elif key_d and not key_a:
-            commands.append("move x minus")
+        def latest_down(*keys):
+            down = [key for key in keys if key in self.keys_down]
+            return max(down, key=lambda k: self.key_press_order.get(k, 0)) if down else None
 
-        key_w = QtCore.Qt.Key_W in self.keys_down
-        key_s = QtCore.Qt.Key_S in self.keys_down
-        if key_w and not key_s:
-            commands.append("move y minus")
-        elif key_s and not key_w:
-            commands.append("move y plus")
+        x = latest_down(QtCore.Qt.Key_A, QtCore.Qt.Key_D)
+        y = latest_down(QtCore.Qt.Key_W, QtCore.Qt.Key_S)
+        z = latest_down(QtCore.Qt.Key_J, QtCore.Qt.Key_K)
 
-        key_j = QtCore.Qt.Key_J in self.keys_down
-        key_k = QtCore.Qt.Key_K in self.keys_down
-        if key_j and not key_k:
-            commands.append("move z up")
-        elif key_k and not key_j:
-            commands.append("move z down")
 
-        if not commands:
-            return
+        desired = {
+            "x": ("jog_x plus 1000" if x == QtCore.Qt.Key_A else
+                  "jog_x minus 1000" if x == QtCore.Qt.Key_D else
+                  gamepad_jog_command("x", self.controller_axes["x"])),
+            "y": ("jog_y minus 1000" if y == QtCore.Qt.Key_W else
+                  "jog_y plus 1000" if y == QtCore.Qt.Key_S else
+                  gamepad_jog_command("y", self.controller_axes["y"])),
+            "z": ("jog_z up 500" if z == QtCore.Qt.Key_J else
+                  "jog_z down 500" if z == QtCore.Qt.Key_K else
+                  gamepad_jog_command("z", self.controller_axes["z"])),
+        }
 
-        payload = ("\n".join(commands) + "\n").encode("ascii")
-        self.probe.ser.write(payload)
-        self.probe.ser.flush()
+        changed = []
+        for axis, command in desired.items():
+            if self.last_movement_commands[axis] != command:
+                changed.append(command)
+                self.last_movement_commands[axis] = command
+
+        if changed:
+            payload = ("\n".join(changed) + "\n").encode("ascii")
+            self.probe.ser.write(payload)
+            self.probe.ser.flush()
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if (event.type() == QtCore.QEvent.ActivationChange and
+                not self.isActiveWindow() and hasattr(self, "keys_down")):
+            self.stop_manual_motion()
+
+    def closeEvent(self, event):
+        self.timer.stop()
+        if self.controller_enabled:
+            self.controller_timer.stop()
+        self.stop_manual_motion()
+        if self.controller_enabled:
+            self.release_controller()
+            sdl_controller.quit()
+            pygame.display.quit()
+        super().closeEvent(event)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -273,7 +424,7 @@ class AScanApp(QtWidgets.QMainWindow):
         BYTES_PER_PULSE = SAMPLE_COUNT * 2
 
         for _ in range(waveform_count):
-            
+
             self.check_pico_messages()
             self.probe.ser.reset_input_buffer()
 
