@@ -6,6 +6,11 @@
 #include "dac/dac.h"
 #include "../external/pico_fast_serial/fast_serial.h"
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <string.h>
+
 //---------------------------------------------------------------------------
 // GLOBALS
 //--------------------------------------------------------------------------
@@ -40,7 +45,6 @@ void process_command(char *input)
         return;
     }
 
-    /* First accept one-word commands such as move_x/jog_x/stop_x/read. */
     for (int i = 0; i < (int)(sizeof(command_list) / sizeof(command_t)); ++i) {
         if (strcmp(command, command_list[i].command_name) == 0) {
             char *args = strtok(NULL, "\r\n");
@@ -49,7 +53,6 @@ void process_command(char *input)
         }
     }
 
-    /* Preserve the existing two-word commands such as "start acq" and "write dac". */
     char *subcommand = strtok(NULL, " \r\n");
     if (subcommand != NULL) {
         char full_command[50];
@@ -70,17 +73,43 @@ void process_command(char *input)
     printf("Unknown command: %s\n", command);
 }
 
-void read_input(char *buffer, int max_len)
+#define COMMAND_BUFFER_SIZE       128u
+#define MAX_SERIAL_BYTES_PER_POLL  64u
+
+static void poll_serial_commands(void)
 {
-    int len = fast_serial_read_until(buffer, max_len, '\n'); 
-    
-    if (len > 0) {
-        buffer[len] = '\0';
-        if (buffer[len - 1] == '\r') {
-            buffer[len - 1] = '\0';
+    static char command_buffer[COMMAND_BUFFER_SIZE];
+    static size_t command_length = 0;
+    static bool discard_oversized_line = false;
+
+    for (uint32_t bytes = 0;
+         bytes < MAX_SERIAL_BYTES_PER_POLL && fast_serial_read_available() > 0;
+         ++bytes) {
+        char ch;
+        if (fast_serial_read_atomic(&ch, 1) != 1) {
+            break;
         }
-    } else {
-        buffer[0] = '\0';
+
+        if (ch == '\n') {
+            if (!discard_oversized_line && command_length > 0) {
+                command_buffer[command_length] = '\0';
+                process_command(command_buffer);
+            }
+            command_length = 0;
+            discard_oversized_line = false;
+            break;
+        }
+
+        if (discard_oversized_line || ch == '\r') {
+            continue;
+        }
+
+        if (command_length < sizeof(command_buffer) - 1) {
+            command_buffer[command_length++] = ch;
+        } else {
+            command_length = 0;
+            discard_oversized_line = true;
+        }
     }
 }
 
@@ -105,15 +134,10 @@ int main()
     sleep_ms(100);
     motor_setup();
 
-    char input[128];
     while (true)
     {
         fast_serial_task();
         motor_service();
-        read_input(input, sizeof(input));
-        if (input[0] != '\0')
-        {
-            process_command(input);
-        }
+        poll_serial_commands();
     }
 }

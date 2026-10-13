@@ -17,11 +17,11 @@ except ImportError:
     sdl_controller = None
 
 
-GAMEPAD_DEADZONE = 0.25
-GAMEPAD_POLL_MS = 50
+GAMEPAD_DEADZONE = 0.1
+GAMEPAD_POLL_MS = 10
 
 
-GAMEPAD_MAX_SPEED_HZ = {"x": 5000, "y": 5000, "z": 500}
+GAMEPAD_MAX_SPEED_HZ = {"x": 2500, "y": 2500, "z": 3000}
 GAMEPAD_MIN_SPEED_HZ = 100
 GAMEPAD_SPEED_STEP_HZ = 50
 
@@ -56,8 +56,8 @@ def gamepad_jog_command(axis, deflection):
 
     negative, positive = {
         "x": ("plus", "minus"),
-        "y": ("minus", "plus"),
-        "z": ("up", "down"),
+        "y": ("plus", "minus"),
+        "z": ("down", "up"),
     }[axis]
     return f"jog_{axis} {positive if deflection > 0 else negative} {speed}"
 
@@ -317,14 +317,14 @@ class AScanApp(QtWidgets.QMainWindow):
 
 
         desired = {
-            "x": ("jog_x plus 1000" if x == QtCore.Qt.Key_A else
-                  "jog_x minus 1000" if x == QtCore.Qt.Key_D else
+            "x": ("jog_x plus 2000" if x == QtCore.Qt.Key_A else
+                  "jog_x minus 2000" if x == QtCore.Qt.Key_D else
                   gamepad_jog_command("x", self.controller_axes["x"])),
-            "y": ("jog_y minus 1000" if y == QtCore.Qt.Key_W else
-                  "jog_y plus 1000" if y == QtCore.Qt.Key_S else
+            "y": ("jog_y plus 2000" if y == QtCore.Qt.Key_W else
+                  "jog_y minus 2000" if y == QtCore.Qt.Key_S else
                   gamepad_jog_command("y", self.controller_axes["y"])),
-            "z": ("jog_z up 500" if z == QtCore.Qt.Key_J else
-                  "jog_z down 500" if z == QtCore.Qt.Key_K else
+            "z": ("jog_z up 2000" if z == QtCore.Qt.Key_J else
+                  "jog_z down 2000" if z == QtCore.Qt.Key_K else
                   gamepad_jog_command("z", self.controller_axes["z"])),
         }
 
