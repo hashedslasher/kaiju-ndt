@@ -1,7 +1,7 @@
 numpy
-pyserial
-matplotlib
-h5py
 scipy
+pyserial
 PyQt5
 pyqtgraph
+pygame
+matplotlib

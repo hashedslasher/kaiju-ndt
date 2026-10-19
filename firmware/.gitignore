@@ -1,3 +1,4 @@
-build/
-build2350
-build2040
+build*/
+dist/
+.deps/
+.env

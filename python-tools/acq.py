@@ -1,4 +1,7 @@
 import sys
+if __name__ == '__main__' and len(sys.argv) > 1 and sys.argv[1].startswith('--'):
+    from tests import dispatch
+    sys.exit(dispatch.run(sys.argv[1:]))
 import numpy as np
 from scipy import signal
 from PyQt5 import QtWidgets, QtCore
@@ -94,8 +97,9 @@ class AScanApp(QtWidgets.QMainWindow):
         self.gain = 460
         self.pon, self.poff, self.damp = 75, 75, 6000
 
-        self.probe.dac(self.gain)
-        self.check_pico_messages()
+        self.probe.set_gain(self.gain)
+        self.probe.configure_pulse(self.pon, self.damp, self.poff)
+        self.probe.arm_pulser()
 
         self.start_us, self.end_us = 0, 24
 
@@ -334,10 +338,15 @@ class AScanApp(QtWidgets.QMainWindow):
                 changed.append(command)
                 self.last_movement_commands[axis] = command
 
-        if changed:
-            payload = ("\n".join(changed) + "\n").encode("ascii")
-            self.probe.ser.write(payload)
-            self.probe.ser.flush()
+        for command in changed:
+            parts = command.split()
+            try:
+                if parts[0].startswith("stop_"):
+                    self.probe.stop(parts[0][-1])
+                else:
+                    self.probe.jog(parts[0][-1], parts[1], int(parts[2]))
+            except (RuntimeError, ValueError, TimeoutError) as error:
+                print(error)
 
     def changeEvent(self, event):
         super().changeEvent(event)
@@ -391,16 +400,17 @@ class AScanApp(QtWidgets.QMainWindow):
         try:
             if cmd == "gain" and len(parts) >= 2:
                 self.gain = int(parts[1])
-                self.probe.dac(self.gain)
-                self.check_pico_messages()
+                self.probe.set_gain(self.gain)
 
             elif cmd in ("pon", "poff", "pon/poff") and len(parts) >= 2:
                 val = int(parts[1])
                 self.pon = val
                 self.poff = val
+                self.probe.configure_pulse(self.pon, self.damp, self.poff)
 
             elif cmd == "damp" and len(parts) >= 2:
                 self.damp = int(parts[1])
+                self.probe.configure_pulse(self.pon, self.damp, self.poff)
 
             elif cmd == "window" and len(parts) >= 3:
                 self.start_us = float(parts[1])
@@ -420,45 +430,12 @@ class AScanApp(QtWidgets.QMainWindow):
         pulses = []
         waveform_count = 1
 
-        SAMPLE_COUNT = 8000
-        BYTES_PER_PULSE = SAMPLE_COUNT * 2
-
         for _ in range(waveform_count):
 
-            self.check_pico_messages()
-            self.probe.ser.reset_input_buffer()
-
-            cmd = (
-                f"start acq "
-                f"{self.pon} "
-                f"{self.poff} "
-                f"{self.damp}\n"
-            )
-
-            self.probe.ser.write(bytearray(cmd, 'ascii'))
-            self.probe.ser.flush()
-
-            raw_bytes = self.probe.ser.read(BYTES_PER_PULSE)
-
-            if len(raw_bytes) == BYTES_PER_PULSE:
-                raw_ints = np.frombuffer(
-                    raw_bytes,
-                    dtype=np.uint16
-                )
-
-                shifted_ints = (raw_ints >> 1) & 0x3FF
-
-                normalized = (
-                    shifted_ints.astype(np.float32) - 512.0
-                ) / 512.0
-
-                pulses.append(normalized)
-
-            else:
-                print(
-                    f"Expected {BYTES_PER_PULSE} bytes, "
-                    f"got {len(raw_bytes)}"
-                )
+            frame = self.probe.read_raw()
+            normalized = (frame.samples().astype(np.float32) - 512.0) / 512.0
+            self.fs = frame.header.sample_rate_hz
+            pulses.append(normalized)
 
         if len(pulses) < waveform_count:
             return
@@ -509,9 +486,7 @@ class AScanApp(QtWidgets.QMainWindow):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
-
     window = AScanApp()
     window.show()
-
     sys.exit(app.exec_())
 

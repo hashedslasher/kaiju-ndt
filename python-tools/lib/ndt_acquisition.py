@@ -31,7 +31,7 @@ def get_probe(force_new: bool = False):
     """
     Return a shared `Pic0rick` instance, creating it on first call.
 
-    Importing `pic0lib` is deferred until this is called so the rest of
+    Importing `pic0rick` is deferred until this is called so the rest of
     the module is usable on machines without the hardware library
     (e.g. for offline analysis or loading HDF5 files).
     """
@@ -55,7 +55,7 @@ class UltrasonicAcquisition:
     pon:    int                   # pulse-on duration
     poff:   int                   # pulse-off duration
     damp:   int                   # damping
-    gain:   float                 # gain [dB]
+    gain:   float                 # raw DAC value (0-1023) passed to MCP4812 via `write dac`
     target: str = ""              # NDT target description (block, defect, ...)
     timestamp: str = field(
         default_factory=lambda: datetime.now().isoformat(timespec="seconds")
@@ -347,6 +347,10 @@ class UltrasonicAcquisition:
         Trigger an acquisition and wrap the resulting trace.
 
         `probe`     : existing Pic0rick instance, or None to use the shared one.
+        `gain`      : raw 10-bit DAC value (0–1023) sent to the MCP4812 SPI DAC,
+                      which sets the VGAIN pin on the AD8331 TGC (7.5–55.5 dB).
+                      This is NOT a dB value; typical range is 0–500.
+        `pon`/`poff`/`damp` : pulse timing in nanoseconds.
         `h5_path`   : if given, the acquisition is persisted to that file
                       using (gain, pon, poff, damp, target) as the dedup key.
         `overwrite` : if False (default) and an entry with the same key
@@ -379,21 +383,17 @@ class UltrasonicAcquisition:
 
         if probe is None:
             probe = get_probe()
-            
-        probe.dac(int(gain))
-        probe.pulse_adc_trigger(pon=pon, poff=poff, damp=damp)
-        probe.ser.write(bytearray("read\n", "ascii"))
-        
-        SAMPLE_COUNT = 8000
-        raw_bytes = probe.bread(SAMPLE_COUNT * 2)
-        
-        if len(raw_bytes) == SAMPLE_COUNT * 2:
-            raw_ints = np.frombuffer(raw_bytes, dtype=np.uint16)
-            shifted_ints = (raw_ints >> 1) & 0x3FF
-            signal = (shifted_ints.astype(np.float32) - 512.0) / 512.0
-        else:
-            signal = np.zeros(SAMPLE_COUNT, dtype=np.float32)
-
+        # DSP-build (-DDSP) commands: set gain, configure + arm the pulser, then
+        # a raw capture (8000 samples). pon/poff map to the P+/P- durations, so
+        # positive_ns=pon, negative_ns=poff, fired positive-first.
+        probe.set_gain(gain)
+        probe.configure_pulse(negative_ns=poff, damp_ns=damp,
+                              positive_ns=pon, order="pos-first")
+        probe.arm_pulser()
+        frame = probe.read_raw()
+        probe.disarm_pulser()
+        # Raw samples are 10-bit ADC codes (0..1023); normalize to [-1, 1].
+        signal = (frame.samples().astype(np.float32) - 512.0) / 512.0
         a = cls(
             signal=signal, Fech=Fech,
             pon=pon, poff=poff, damp=damp,
@@ -529,7 +529,7 @@ class UltrasonicAcquisition:
         ax_amp.legend(loc="best", fontsize=9)
 
         fig.suptitle(
-            f"Calibration — target='{target}', gain={gain} dB, "
+            f"Calibration — target='{target}', gain={gain} (DAC), "
             f"piezo {piezo_central_freq/1e6:.2f} MHz ± "
             f"{piezo_bandwidth/2/1e6:.2f} MHz"
         )
@@ -549,7 +549,7 @@ class UltrasonicAcquisition:
     def label(self) -> str:
         """One-line summary used as plot title / legend entry."""
         target = self.target or "untitled"
-        parts = [target, f"gain={self.gain} dB",
+        parts = [target, f"gain={self.gain} (DAC)",
                  f"pon={self.pon}, poff={self.poff}, damp={self.damp}",
                  f"Fech={self.Fech / 1e6:.2f} MHz"]
         if self.piezo_id:

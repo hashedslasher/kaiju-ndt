@@ -54,7 +54,7 @@
             packages = with pkgs; [
               zlib stdenv.cc gcc-unwrapped.lib cmake gcc
               gcc-arm-embedded 
-              qtEnv qt5.wrapQtAppsHook qt5.qtbase qtcreator
+              qtEnv qt5.wrapQtAppsHook qt5.qtbase qtcreator ffmpeg
             ];
 
             buildInputs = with pkgs; [
