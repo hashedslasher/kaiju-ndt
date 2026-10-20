@@ -41,7 +41,6 @@ static motor_axis_t axis_x;
 static motor_axis_t axis_y;
 static motor_axis_t axis_z;
 
-/* Nonblocking startup homing: X first, then Y, leaving Z untouched. */
 typedef enum {
     HOME_IDLE = 0, HOME_X, HOME_Y, HOME_COMPLETE, HOME_FAILED
 } home_state_t;
@@ -89,11 +88,6 @@ void init_motor_sm(PIO pio, uint sm, uint offset, uint step_pin, uint dir_pin)
     pio_sm_set_enabled(pio, sm, true);
 }
 
-/* A DMA block is finished only when all words have been transferred AND
- * the state machine is stalled at its program start (the blocking PULL),
- * with an empty TX FIFO. DMA completion alone does NOT imply the last
- * motor STEP pulse has been emitted.
- */
 static bool axis_block_drained(const motor_axis_t *axis)
 {
     return !dma_channel_is_busy(axis->dma_chan) &&
@@ -101,10 +95,6 @@ static bool axis_block_drained(const motor_axis_t *axis)
            pio_sm_get_pc(axis->pio, axis->sm) == motor_pio_offset;
 }
 
-/* Number of emitted steps in the current DMA block. During an active
- * pulse the estimate is conservative by up to a few STEP pulses. A fully
- * drained block can be counted exactly. 'exact' reports this distinction.
- */
 static uint32_t axis_executed_steps(const motor_axis_t *axis, bool *exact)
 {
     if (!axis->active || !axis->planned_steps) {
@@ -123,7 +113,6 @@ static uint32_t axis_executed_steps(const motor_axis_t *axis, bool *exact)
     uint32_t executed = axis->planned_steps - remaining;
     const uint32_t queued = pio_sm_get_tx_fifo_level(axis->pio, axis->sm);
     executed = executed > queued ? executed - queued : 0u;
-    /* One more word might be in the PIO's output shifter. */
     if (executed) {
         --executed;
     }
@@ -132,18 +121,9 @@ static uint32_t axis_executed_steps(const motor_axis_t *axis, bool *exact)
 
 static void stop_axis_now(motor_axis_t *axis)
 {
-    /* Can be called from a GPIO ISR. Freeze the PIO before examining DMA
-     * progress, so no additional STEP pulses are generated during abort.
-     */
     const uint32_t saved = save_and_disable_interrupts();
     bool exact;
-    /* Sample after stopping the state machine so the count can't increase
-     * under us. DMA may still be filling its FIFO until aborted.
-     */
     pio_sm_set_enabled(axis->pio, axis->sm, false);
-    /* Snapshot BEFORE aborting the DMA. An aborted channel reads as idle,
-     * which must never be mistaken for a fully completed motion block.
-     */
     const uint32_t executed = axis_executed_steps(axis, &exact);
     if (dma_channel_is_busy(axis->dma_chan)) {
         dma_channel_abort(axis->dma_chan);
@@ -233,10 +213,6 @@ static bool start_axis_block(motor_axis_t *axis)
         build_cruise_profile(axis->profile, axis->dir_bit, axis->target_freq_hz);
     }
 
-    /* Do not allow an endstop IRQ to stop the motor in the gap between
-     * checking the switch and arming DMA. Hold interrupts only while arming,
-     * never while generating the (large) speed profile.
-     */
     const uint32_t saved = save_and_disable_interrupts();
     room = positioning_steps_available(axis->id, axis->dir_bit);
     if (!axis->active || room < steps) {
@@ -279,9 +255,6 @@ static void service_axis(motor_axis_t *axis)
     if (!axis->active || !axis_block_drained(axis)) {
         return;
     }
-    /* Both DMA and the last PIO pulse have completed; this count is exact.
-     * Reset planned_steps atomically so an endstop IRQ cannot count twice.
-     */
     const uint32_t saved = save_and_disable_interrupts();
     if (!axis->active || !axis_block_drained(axis)) {
         restore_interrupts(saved);
@@ -568,7 +541,6 @@ void motor_setup(void)
         .id=POSITION_AXIS_Z};
     positioning_init();
 #if AUTO_HOME_XY_ON_STARTUP
-    /* Verify X/Y DIR polarity and switch wiring before enabling power. */
     (void)motor_home_xy();
 #endif
 }
