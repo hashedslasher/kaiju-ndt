@@ -107,6 +107,7 @@ target_link_libraries(p0rk_dsp PUBLIC
 # acquisition and the pulser, respectively.
 add_library(p0rk_gantry STATIC
     src/gantry/motors.c
+    src/gantry/positioning.c
 )
 pico_generate_pio_header(p0rk_gantry ${CMAKE_CURRENT_LIST_DIR}/src/gantry/motors.pio)
 target_include_directories(p0rk_gantry PUBLIC

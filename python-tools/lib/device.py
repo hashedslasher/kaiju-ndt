@@ -2,36 +2,94 @@ import os
 import time
 import serial
 from serial.tools import list_ports
-from . import dsp
+from . import protocol
+
+
+# USB VID/PID from firmware/src/dsp/usb_descriptors.c. Never select an
+# arbitrary first serial port: it may belong to a modem, debugger or driver.
+PIC0RICK_USB_VID = 0xCAFE
+PIC0RICK_USB_PID = 0x4011
+
+
+def find_pic0rick_port():
+    ports = list(list_ports.comports())
+    matches = [
+        item.device for item in ports
+        if ((getattr(item, 'vid', None), getattr(item, 'pid', None)) ==
+            (PIC0RICK_USB_VID, PIC0RICK_USB_PID))
+        or 'pic0rick' in str(getattr(item, 'description', '')).lower()
+        or 'pic0rick' in str(getattr(item, 'manufacturer', '')).lower()
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    available = ', '.join(
+        f'{item.device} ({getattr(item, "description", "unknown")})'
+        for item in ports
+    ) or 'none'
+    if matches:
+        raise OSError(
+            f'Multiple pic0rick serial ports detected: {", ".join(matches)}. '
+            'Specify PIC0RICK_PORT=/dev/ttyACM0 or --port when supported.'
+        )
+    raise OSError(
+        'No pic0rick USB CDC device (VID:PID CAFE:4011) detected. '
+        f'Visible serial ports: {available}. '
+        'Check the USB cable, firmware, and `python -m serial.tools.list_ports -v`. '
+        'If your firmware uses a different USB ID, set PIC0RICK_PORT to its port.'
+    )
 
 
 class Pic0rick:
     def __init__(self, port=None, verbose=False, logging=False, log_file=None, timeout=3.0):
-        name = port or os.environ.get('PIC0RICK_PORT')
-        if name is None:
-            ports = sorted(item.device for item in list_ports.comports())
-            if not ports:
-                raise OSError('No serial device found; set PIC0RICK_PORT')
-            name = ports[0]
+        name = port or os.environ.get('PIC0RICK_PORT') or find_pic0rick_port()
+        self.port = name
         self.ser = serial.Serial(name, baudrate=115200, timeout=timeout, write_timeout=timeout)
         self.Fech = 60e6
         self.verbose = verbose
         self.last_reply = ''
-        self.reader = dsp.FrameReader(self.ser)
-        time.sleep(0.25)
-        self.ser.reset_input_buffer()
+        self.reader = protocol.FrameReader(self.ser)
+        try:
+            # TinyUSB's CDC ready state depends on the host asserting DTR.
+            self.ser.dtr = True
+            time.sleep(0.35)
+            self.ser.reset_input_buffer()
+            last_error = None
+            # A cold-starting board may miss the first command. Probe only
+            # with read-only status; never auto-retry motor/pulser commands.
+            for _ in range(2):
+                try:
+                    protocol.parse_status(self.command('status'))
+                    break
+                except (OSError, RuntimeError, TimeoutError, ValueError) as exc:
+                    last_error = exc
+                    time.sleep(0.25)
+            else:
+                raise ConnectionError(
+                    f'Port {name} opened but did not return a valid pic0rick '
+                    f'firmware status. Last error: {last_error}. '
+                    'Verify the RP2350 DSP firmware is running, the port is '
+                    'correct, and no other serial program is using it.'
+                )
+        except BaseException:
+            self.ser.close()
+            raise
 
     def command(self, text):
         self.ser.write((text + '\n').encode('ascii'))
         self.ser.flush()
         reply = self.ser.readline().decode('ascii', 'replace').strip()
         self.last_reply = reply
+        if not reply:
+            raise TimeoutError(
+                f'No response from {self.port if hasattr(self, "port") else "serial device"} '
+                f'to {text!r}. Check USB connection / active firmware.'
+            )
         if not reply.startswith('OK '):
-            raise RuntimeError(reply or f'No response to {text}')
+            raise RuntimeError(f'Firmware rejected {text!r}: {reply}')
         return reply
 
     def status(self):
-        return dsp.parse_status(self.command('status'))
+        return protocol.parse_status(self.command('status'))
 
     def version(self):
         return self.command('version')
@@ -56,20 +114,39 @@ class Pic0rick:
         return self.command('pulser disarm')
 
     def capture(self, payload='raw'):
-        choices = {'raw': 'read_raw', 'envelope': 'read_fft', 'alaw': 'acq alaw'}
-        if payload not in choices:
-            raise ValueError(payload)
-        self.command(choices[payload])
+        """Request one already-formatted capture from the Pico 2.
+
+        User-facing 'fft' means the firmware's FFT-based Hilbert envelope,
+        not a frequency-domain spectrum. 'a-law' is that envelope compressed.
+        No bandpass, FFT, Hilbert transform, or averaging runs on the host.
+        """
+        modes = {
+            'raw': ('read_raw', 'raw'),
+            'fft': ('read_fft', 'envelope'),
+            'envelope': ('read_fft', 'envelope'),
+            'a-law': ('acq alaw', 'alaw'),
+            'alaw': ('acq alaw', 'alaw'),
+        }
+        try:
+            command, expected = modes[payload.lower()]
+        except (KeyError, AttributeError):
+            raise ValueError("Mode must be raw, fft, or a-law") from None
+        self.command(command)
         frame = self.reader.read_frame()
-        if frame.header.payload_name != payload:
-            raise ValueError(f'Unexpected frame type {frame.header.payload_name}')
+        if frame.header.payload_name != expected:
+            raise ValueError(
+                f'Unexpected frame type {frame.header.payload_name}; expected {expected}'
+            )
         return frame
 
     def read_raw(self):
         return self.capture('raw')
 
     def read_fft(self):
-        return self.capture('envelope')
+        return self.capture('fft')
+
+    def read_alaw(self):
+        return self.capture('a-law')
 
     def stream_start(self, payload, rate):
         if payload not in ('raw', 'envelope', 'alaw'):

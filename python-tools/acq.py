@@ -3,11 +3,11 @@ if __name__ == '__main__' and len(sys.argv) > 1 and sys.argv[1].startswith('--')
     from tests import dispatch
     sys.exit(dispatch.run(sys.argv[1:]))
 import numpy as np
-from scipy import signal
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtWidgets import QAction
 import pyqtgraph as pg
-from lib.ndt_acquisition import get_probe
+from lib.device import Pic0rick
+from lib.protocol import alaw_decode
 from PyQt5.QtWidgets import QWidget, QApplication
 from PyQt5.QtCore import Qt
 
@@ -76,7 +76,7 @@ class OverlayLineEdit(QtWidgets.QLineEdit):
 
 
 class AScanApp(QtWidgets.QMainWindow):
-    def __init__(self):
+    def __init__(self, initial_mode="fft"):
         super().__init__()
 
         self.setWindowTitle("A-scan")
@@ -92,8 +92,8 @@ class AScanApp(QtWidgets.QMainWindow):
         self.save_image = QAction('Save Image', self)
         self.file_menu.addAction(self.save_image)
 
-        self.probe = get_probe()
-        self.fs = 60e6
+        self.probe = Pic0rick()
+        self.fs =30e6
         self.gain = 460
         self.pon, self.poff, self.damp = 75, 75, 6000
 
@@ -103,38 +103,23 @@ class AScanApp(QtWidgets.QMainWindow):
 
         self.start_us, self.end_us = 0, 24
 
-        nyq = self.fs / 2.0
-        self.b, self.a = signal.butter(
-            2,
-            [5e6 / nyq, 15e6 / nyq],
-            btype='bandpass'
-        )
-
         self.plot_widget = pg.PlotWidget()
         self.setCentralWidget(self.plot_widget)
 
         self.plot_widget.setXRange(self.start_us, self.end_us)
-        self.plot_widget.setYRange(-0.05, 1.2)
         self.plot_widget.showGrid(x=True, y=True, alpha=0.3)
         self.plot_widget.setLabel('bottom', 'Time', units='µs')
-        self.plot_widget.setLabel('left', 'Amplitude')
+        self.plot_widget.setLabel('left', 'Envelope', units='ADC counts')
 
-        self.curve_env = self.plot_widget.plot(
-            pen=pg.mkPen(color='white', width=2),
-            name="Squared Envelope"
+        self.curve = self.plot_widget.plot(
+            pen=pg.mkPen(color='white', width=2)
         )
-
-        self.curve_peaks = self.plot_widget.plot(
-            pen=None,
-            symbol='x',
-            symbolPen='r',
-            symbolBrush='r',
-            symbolSize=12
-        )
+        self.mode = None
+        self.set_capture_mode(initial_mode)
 
         self.cmd_input = OverlayLineEdit(self)
         self.cmd_input.setPlaceholderText(
-            "gain, damp, pon, poff, window start end"
+            "raw | fft | a-law | gain N | window start end | pulse_rate Hz"
         )
 
         self.cmd_input.setStyleSheet("""
@@ -385,108 +370,126 @@ class AScanApp(QtWidgets.QMainWindow):
             except ValueError:
                 print(f"[PICO] {line}")
 
+    def set_capture_mode(self, mode):
+        """Select the mode executed by firmware for subsequent captures."""
+        aliases = {'raw': 'raw', 'fft': 'fft', 'envelope': 'fft',
+                   'a-law': 'a-law', 'alaw': 'a-law'}
+        mode = aliases.get(mode.lower())
+        if mode is None:
+            raise ValueError('Mode must be raw, fft, or a-law')
+        self.mode = mode
+        self.curve.clear()
+        if mode == 'raw':
+            label = 'Raw'
+            self.plot_widget.setLabel('left', 'ADC value', units='counts')
+        elif mode == 'fft':
+            label = 'FFT / Hilbert envelope'
+            self.plot_widget.setLabel('left', 'Envelope', units='ADC counts')
+        else:
+            label = 'A-law envelope'
+            self.plot_widget.setLabel('left', 'Envelope', units='ADC counts')
+        self.plot_widget.setTitle(label)
+        self.statusBar().showMessage(f'Acquisition mode: {mode}')
+        print(f'[Acquisition] {label}')
+
     def handle_command(self):
         text = self.cmd_input.text().strip()
-
         self.cmd_input.hide()
         self.cmd_input.clear()
-
         if not text:
             return
 
         parts = text.replace(',', ' ').split()
         cmd = parts[0].lower()
-
         try:
-            if cmd == "gain" and len(parts) >= 2:
+            if cmd in ('raw', 'fft', 'a-law', 'alaw', 'envelope') and len(parts) == 1:
+                self.set_capture_mode(cmd)
+
+            elif cmd == 'gain' and len(parts) == 2:
                 self.gain = int(parts[1])
                 self.probe.set_gain(self.gain)
 
-            elif cmd in ("pon", "poff", "pon/poff") and len(parts) >= 2:
+            elif cmd in ('pon', 'poff', 'pon/poff') and len(parts) == 2:
                 val = int(parts[1])
                 self.pon = val
                 self.poff = val
                 self.probe.configure_pulse(self.pon, self.damp, self.poff)
 
-            elif cmd == "damp" and len(parts) >= 2:
+            elif cmd == 'damp' and len(parts) == 2:
                 self.damp = int(parts[1])
                 self.probe.configure_pulse(self.pon, self.damp, self.poff)
 
-            elif cmd == "window" and len(parts) >= 3:
-                self.start_us = float(parts[1])
-                self.end_us = float(parts[2])
-                self.plot_widget.setXRange(
-                    self.start_us,
-                    self.end_us
-                )
+            elif cmd == 'window' and len(parts) == 3:
+                start, end = float(parts[1]), float(parts[2])
+                if start < 0 or end <= start:
+                    raise ValueError('Window must satisfy 0 <= start < end (µs)')
+                self.start_us, self.end_us = start, end
+                self.plot_widget.setXRange(start, end)
 
-            elif cmd == "pulse_rate" and len(parts) >= 2:
-                self.waveform_count = int(parts[1])
+            elif cmd == 'pulse_rate' and len(parts) == 2:
+                rate = float(parts[1])
+                if not 0 < rate <= 20:
+                    raise ValueError('pulse_rate must be >0 and <=20 Hz')
+                self.timer.setInterval(round(1000.0 / rate))
+                print(f'[Acquisition] Display refresh {rate:g} Hz')
 
-        except ValueError:
-            pass
+            elif cmd == 'help' and len(parts) == 1:
+                print('Commands: raw | fft | a-law | gain N | pon N | poff N '
+                      '| damp N | window START_US END_US | pulse_rate HZ')
+            else:
+                raise ValueError(f'Unknown or incomplete command: {text}')
+        except (ValueError, RuntimeError, TimeoutError, OSError) as exc:
+            print(f'[Command] {exc}')
+            self.statusBar().showMessage(str(exc), 5000)
 
     def update_frame(self):
-        pulses = []
-        waveform_count = 1
-
-        for _ in range(waveform_count):
-
-            frame = self.probe.read_raw()
-            normalized = (frame.samples().astype(np.float32) - 512.0) / 512.0
-            self.fs = frame.header.sample_rate_hz
-            pulses.append(normalized)
-
-        if len(pulses) < waveform_count:
+        """Only request and plot firmware output. No Python-side signal DSP."""
+        try:
+            frame = self.probe.capture(self.mode)
+        except (RuntimeError, ValueError, TimeoutError, OSError) as exc:
+            print(f'[Acquisition] {exc}')
+            self.statusBar().showMessage(f'Capture error: {exc}', 5000)
             return
 
-        sig = np.mean(pulses, axis=0)
-
-        sig_filtered = signal.filtfilt(
-            self.b,
-            self.a,
-            sig
-        )
-
-        envelope = np.abs(
-            signal.hilbert(sig_filtered)
-        )
-
-        env_norm = envelope / (
-            np.max(envelope) + 1e-9
-        )
-
-        env_squared = env_norm ** 2
-
-        t = np.arange(len(sig)) / self.fs * 1e6
-
-        mask = (
-            (t >= self.start_us) &
-            (t <= self.end_us)
-        )
-
-        t_zoom = t[mask]
-        env_zoom = env_squared[mask]
-
-        if env_zoom.size == 0:
+        self.fs = frame.header.sample_rate_hz
+        if self.fs <= 0:
+            print('[Acquisition] Frame has invalid sampling rate')
             return
 
-        peaks, _ = signal.find_peaks(
-            env_zoom,
-            height=0.15,
-            distance=int(0.4e-6 * self.fs),
-            prominence=0.08
-        )
+        if self.mode == 'a-law':
+            values = alaw_decode(frame.samples(), frame.header.alaw_reference)
+        else:
+            values = frame.samples()
 
-        self.curve_env.setData(
-            t_zoom,
-            env_zoom
-        )
+        time_us = np.arange(values.size, dtype=np.float64) * (1e6 / self.fs)
+        selection = (time_us >= self.start_us) & (time_us <= self.end_us)
+        if not np.any(selection):
+            self.curve.clear()
+            self.statusBar().showMessage(
+                f'Window is outside {values.size / self.fs * 1e6:.2f} µs capture',
+                5000,
+            )
+            return
+
+        x = time_us[selection]
+        y = values[selection]
+        self.curve.setData(x, y)
+        low, high = float(np.min(y)), float(np.max(y))
+        padding = max((high - low) * 0.08, 1.0)
+        if self.mode != 'raw':
+            low = max(0.0, low - padding)
+        else:
+            low -= padding
+        self.plot_widget.setYRange(low, high + padding, padding=0)
+
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication(sys.argv)
-    window = AScanApp()
+    initial_mode = sys.argv[1] if len(sys.argv) > 1 else 'fft'
+    if initial_mode not in ('raw', 'fft', 'a-law'):
+        sys.exit('Usage: python acq.py [raw|fft|a-law]  (or --test_name ...)')
+    app = QtWidgets.QApplication(sys.argv[:1])
+    window = AScanApp(initial_mode=initial_mode)
     window.show()
     sys.exit(app.exec_())
 

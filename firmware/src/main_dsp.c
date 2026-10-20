@@ -237,7 +237,7 @@ static void poll_capture(void) {
 
 static void drain_ready_outputs_as_drops(void) {
     uint8_t slot;
-    const uint8_t *data;interupts
+    const uint8_t *data;
     size_t size;
     uint32_t sequence;
     uint32_t session_id;
@@ -429,7 +429,8 @@ static void send_help(void) {
         "start acq|read|"
         "jog_x/jog_y <plus|minus> <hz>|jog_z <up|down> <hz>|"
         "move_x/move_y <plus|minus> <hz> <steps>|"
-        "move_z <up|down> <hz> <steps>|stop_x|stop_y|stop_z|stop_all");
+        "move_z <up|down> <hz> <steps>|stop_x|stop_y|stop_z|stop_all|"
+        "pos|home|pos_zero <x|y|z|all>");
 }
 
 static void send_status(void) {
@@ -503,6 +504,69 @@ static void process_command(char *line) {
 
     const char *motor_args = save;
 
+    if (strcmp(first, "pos") == 0) {
+        /* 'pos' works even if a stream is active. */
+        send_ok("x=%ld y=%ld z=%ld homed=%u/%u/%u exact=%u/%u/%u "
+                "limit_x0=%u limit_y0=%u xmax=%u ymax=%u home=%s",
+                (long)positioning_get_steps(POSITION_AXIS_X),
+                (long)positioning_get_steps(POSITION_AXIS_Y),
+                (long)positioning_get_steps(POSITION_AXIS_Z),
+                positioning_is_homed(POSITION_AXIS_X),
+                positioning_is_homed(POSITION_AXIS_Y),
+                positioning_is_homed(POSITION_AXIS_Z),
+                positioning_is_exact(POSITION_AXIS_X),
+                positioning_is_exact(POSITION_AXIS_Y),
+                positioning_is_exact(POSITION_AXIS_Z),
+                positioning_switch_active(POSITION_AXIS_X),
+                positioning_switch_active(POSITION_AXIS_Y),
+                (unsigned)X_MAX_POSITION_STEPS,
+                (unsigned)Y_MAX_POSITION_STEPS,
+                motor_home_status());
+        return;
+    }
+    if (strcmp(first, "pos_zero") == 0) {
+        char *arg = strtok_r(NULL, " \t", &save);
+        if (motor_any_active() || motor_is_homing_xy()) {
+            send_error("BUSY", "stop all motors before zeroing position");
+        } else if (arg == NULL) {
+            send_error("ARG", "expected x, y, z, or all");
+        } else if (strcmp(arg, "x") == 0) {
+            if (positioning_switch_active(POSITION_AXIS_X)) {
+                positioning_set_zero(POSITION_AXIS_X);
+                send_ok("pos_zero x");
+            } else send_error("LIMIT", "X zero switch is not pressed");
+        } else if (strcmp(arg, "y") == 0) {
+            if (positioning_switch_active(POSITION_AXIS_Y)) {
+                positioning_set_zero(POSITION_AXIS_Y);
+                send_ok("pos_zero y");
+            } else send_error("LIMIT", "Y zero switch is not pressed");
+        } else if (strcmp(arg, "z") == 0) {
+            positioning_set_zero(POSITION_AXIS_Z);
+            send_ok("pos_zero z");
+        } else if (strcmp(arg, "all") == 0) {
+            if (positioning_switch_active(POSITION_AXIS_X) &&
+                positioning_switch_active(POSITION_AXIS_Y)) {
+                positioning_set_zero(POSITION_AXIS_X);
+                positioning_set_zero(POSITION_AXIS_Y);
+                positioning_set_zero(POSITION_AXIS_Z);
+                send_ok("pos_zero all");
+            } else send_error("LIMIT", "both X and Y switches must be pressed");
+        } else {
+            send_error("ARG", "expected x, y, z, or all");
+        }
+        return;
+    }
+
+    if (strcmp(first, "home") == 0) {
+        if (motor_is_homing_xy() || motor_any_active()) {
+            send_error("BUSY", "stop motors before homing");
+        } else if (motor_home_xy()) {
+            send_ok("home started");
+        } else {
+            send_error("HOME", "homing could not start");
+        }
+        return;
+    }
 
     if (strcmp(first, "stop_x") == 0) {
         stop_x(motor_args);
@@ -534,6 +598,11 @@ static void process_command(char *line) {
         return;
     }
 
+    if (motor_is_homing_xy() &&
+        (!strncmp(first, "jog_", 4) || !strncmp(first, "move_", 5))) {
+        send_error("BUSY", "X/Y homing in progress");
+        return;
+    }
     bool motor_command = true;
     bool motor_success = false;
     if (strcmp(first, "jog_x") == 0) {

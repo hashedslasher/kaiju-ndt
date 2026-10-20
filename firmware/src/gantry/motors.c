@@ -3,6 +3,7 @@
 #include "hardware/dma.h"
 #include "hardware/clocks.h"
 #include "hardware/gpio.h"
+#include "hardware/sync.h"
 #include <string.h>
 #include <stdio.h>
 #include <inttypes.h>
@@ -28,7 +29,10 @@ typedef struct {
     uint step_pin;
     uint dir_pin;
     bool active;
+    bool continuous;
     bool needs_ramp;
+    uint32_t planned_steps;
+    position_axis_t id;
     bool dir_bit;
     uint32_t target_freq_hz;
 } motor_axis_t;
@@ -36,6 +40,13 @@ typedef struct {
 static motor_axis_t axis_x;
 static motor_axis_t axis_y;
 static motor_axis_t axis_z;
+
+/* Nonblocking startup homing: X first, then Y, leaving Z untouched. */
+typedef enum {
+    HOME_IDLE = 0, HOME_X, HOME_Y, HOME_COMPLETE, HOME_FAILED
+} home_state_t;
+static home_state_t home_state = HOME_IDLE;
+static uint32_t home_stage_start_ms;
 
 static inline uint32_t pack_step_word(bool dir_bit, uint32_t delay)
 {
@@ -78,22 +89,79 @@ void init_motor_sm(PIO pio, uint sm, uint offset, uint step_pin, uint dir_pin)
     pio_sm_set_enabled(pio, sm, true);
 }
 
+/* A DMA block is finished only when all words have been transferred AND
+ * the state machine is stalled at its program start (the blocking PULL),
+ * with an empty TX FIFO. DMA completion alone does NOT imply the last
+ * motor STEP pulse has been emitted.
+ */
+static bool axis_block_drained(const motor_axis_t *axis)
+{
+    return !dma_channel_is_busy(axis->dma_chan) &&
+           pio_sm_is_tx_fifo_empty(axis->pio, axis->sm) &&
+           pio_sm_get_pc(axis->pio, axis->sm) == motor_pio_offset;
+}
+
+/* Number of emitted steps in the current DMA block. During an active
+ * pulse the estimate is conservative by up to a few STEP pulses. A fully
+ * drained block can be counted exactly. 'exact' reports this distinction.
+ */
+static uint32_t axis_executed_steps(const motor_axis_t *axis, bool *exact)
+{
+    if (!axis->active || !axis->planned_steps) {
+        *exact = true;
+        return 0u;
+    }
+    if (axis_block_drained(axis)) {
+        *exact = true;
+        return axis->planned_steps;
+    }
+    *exact = false;
+    uint32_t remaining = dma_hw->ch[axis->dma_chan].transfer_count;
+    if (remaining > axis->planned_steps) {
+        remaining = axis->planned_steps;
+    }
+    uint32_t executed = axis->planned_steps - remaining;
+    const uint32_t queued = pio_sm_get_tx_fifo_level(axis->pio, axis->sm);
+    executed = executed > queued ? executed - queued : 0u;
+    /* One more word might be in the PIO's output shifter. */
+    if (executed) {
+        --executed;
+    }
+    return executed;
+}
+
 static void stop_axis_now(motor_axis_t *axis)
 {
-    axis->active = false;
-    axis->needs_ramp = false;
-
+    /* Can be called from a GPIO ISR. Freeze the PIO before examining DMA
+     * progress, so no additional STEP pulses are generated during abort.
+     */
+    const uint32_t saved = save_and_disable_interrupts();
+    bool exact;
+    /* Sample after stopping the state machine so the count can't increase
+     * under us. DMA may still be filling its FIFO until aborted.
+     */
     pio_sm_set_enabled(axis->pio, axis->sm, false);
+    /* Snapshot BEFORE aborting the DMA. An aborted channel reads as idle,
+     * which must never be mistaken for a fully completed motion block.
+     */
+    const uint32_t executed = axis_executed_steps(axis, &exact);
     if (dma_channel_is_busy(axis->dma_chan)) {
         dma_channel_abort(axis->dma_chan);
     }
+    if (axis->active && axis->planned_steps) {
+        positioning_add_steps(axis->id, axis->dir_bit, executed, exact);
+    }
 
+    axis->active = false;
+    axis->continuous = false;
+    axis->needs_ramp = false;
+    axis->planned_steps = 0u;
     pio_sm_clear_fifos(axis->pio, axis->sm);
     pio_sm_restart(axis->pio, axis->sm);
-
     pio_sm_exec(axis->pio, axis->sm, pio_encode_set(pio_pins, 0));
     pio_sm_exec(axis->pio, axis->sm, pio_encode_jmp(motor_pio_offset));
     pio_sm_set_enabled(axis->pio, axis->sm, true);
+    restore_interrupts(saved);
 }
 
 void start_dma(PIO pio, uint sm, int dma_chan, uint32_t* profile, uint32_t steps)
@@ -150,8 +218,14 @@ static void build_ramp_profile(uint32_t *profile,
     }
 }
 
-static void start_axis_block(motor_axis_t *axis)
+static bool start_axis_block(motor_axis_t *axis)
 {
+    uint32_t room = positioning_steps_available(axis->id, axis->dir_bit);
+    if (!axis->active || room == 0u) {
+        stop_axis_now(axis);
+        return false;
+    }
+    const uint32_t steps = room < MAX_STEPS ? room : MAX_STEPS;
     if (axis->needs_ramp) {
         build_ramp_profile(axis->profile, axis->dir_bit, axis->target_freq_hz);
         axis->needs_ramp = false;
@@ -159,7 +233,24 @@ static void start_axis_block(motor_axis_t *axis)
         build_cruise_profile(axis->profile, axis->dir_bit, axis->target_freq_hz);
     }
 
-    start_dma(axis->pio, axis->sm, axis->dma_chan, axis->profile, MAX_STEPS);
+    /* Do not allow an endstop IRQ to stop the motor in the gap between
+     * checking the switch and arming DMA. Hold interrupts only while arming,
+     * never while generating the (large) speed profile.
+     */
+    const uint32_t saved = save_and_disable_interrupts();
+    room = positioning_steps_available(axis->id, axis->dir_bit);
+    if (!axis->active || room < steps) {
+        restore_interrupts(saved);
+        stop_axis_now(axis);
+        return false;
+    }
+    axis->planned_steps = steps;
+#ifdef EN_PIN
+    gpio_put(EN_PIN, 0);
+#endif
+    start_dma(axis->pio, axis->sm, axis->dma_chan, axis->profile, steps);
+    restore_interrupts(saved);
+    return true;
 }
 
 static bool jog_axis(motor_axis_t *axis, bool dir_bit, uint32_t freq_hz)
@@ -167,33 +258,103 @@ static bool jog_axis(motor_axis_t *axis, bool dir_bit, uint32_t freq_hz)
     if (freq_hz == 0 || freq_hz > MAX_MOTOR_FREQ_HZ) {
         return false;
     }
-
-    if (axis->active &&
-        axis->dir_bit == dir_bit &&
-        axis->target_freq_hz == freq_hz) {
+    if (axis->active && axis->continuous &&
+        axis->dir_bit == dir_bit && axis->target_freq_hz == freq_hz) {
         return true;
     }
-
     stop_axis_now(axis);
-
+    if (positioning_steps_available(axis->id, dir_bit) == 0u) {
+        return false;
+    }
     axis->dir_bit = dir_bit;
     axis->target_freq_hz = freq_hz;
     axis->active = true;
+    axis->continuous = true;
     axis->needs_ramp = true;
-
-    gpio_put(EN_PIN, 0);
-    start_axis_block(axis);
-    return true;
+    return start_axis_block(axis);
 }
 
 static void service_axis(motor_axis_t *axis)
 {
-    if (!axis->active) {
+    if (!axis->active || !axis_block_drained(axis)) {
         return;
     }
+    /* Both DMA and the last PIO pulse have completed; this count is exact.
+     * Reset planned_steps atomically so an endstop IRQ cannot count twice.
+     */
+    const uint32_t saved = save_and_disable_interrupts();
+    if (!axis->active || !axis_block_drained(axis)) {
+        restore_interrupts(saved);
+        return;
+    }
+    positioning_add_steps(axis->id, axis->dir_bit, axis->planned_steps, true);
+    axis->planned_steps = 0u;
+    const bool continue_jog = axis->continuous;
+    restore_interrupts(saved);
 
-    if (!dma_channel_is_busy(axis->dma_chan)) {
+    if (continue_jog) {
         start_axis_block(axis);
+    } else {
+        stop_axis_now(axis);
+    }
+}
+
+static void home_fail(void)
+{
+    stop_axis_now(&axis_x);
+    stop_axis_now(&axis_y);
+    positioning_cancel_homing(POSITION_AXIS_X);
+    positioning_cancel_homing(POSITION_AXIS_Y);
+    home_state = HOME_FAILED;
+}
+
+static void home_start_y(void)
+{
+    if (positioning_switch_active(POSITION_AXIS_Y)) {
+        positioning_set_zero(POSITION_AXIS_Y);
+        home_state = HOME_COMPLETE;
+        return;
+    }
+    positioning_begin_homing(POSITION_AXIS_Y);
+    home_state = HOME_Y;
+    home_stage_start_ms = to_ms_since_boot(get_absolute_time());
+    if (!jog_axis(&axis_y, Y_DIR_TOWARD_ZERO, HOME_SPEED_HZ)) {
+        home_fail();
+    }
+}
+
+bool motor_home_xy(void)
+{
+    if (axis_x.active || axis_y.active || axis_z.active) return false;
+    positioning_cancel_homing(POSITION_AXIS_X);
+    positioning_cancel_homing(POSITION_AXIS_Y);
+    if (positioning_switch_active(POSITION_AXIS_X)) {
+        positioning_set_zero(POSITION_AXIS_X);
+        home_start_y();
+    } else {
+        positioning_begin_homing(POSITION_AXIS_X);
+        home_state = HOME_X;
+        home_stage_start_ms = to_ms_since_boot(get_absolute_time());
+        if (!jog_axis(&axis_x, X_DIR_TOWARD_ZERO, HOME_SPEED_HZ)) {
+            home_fail();
+        }
+    }
+    return home_state != HOME_FAILED;
+}
+
+bool motor_is_homing_xy(void)
+{
+    return home_state == HOME_X || home_state == HOME_Y;
+}
+
+const char *motor_home_status(void)
+{
+    switch (home_state) {
+        case HOME_X: return "homing-x";
+        case HOME_Y: return "homing-y";
+        case HOME_COMPLETE: return "complete";
+        case HOME_FAILED: return "failed";
+        default: return "idle";
     }
 }
 
@@ -202,6 +363,23 @@ void motor_service(void)
     service_axis(&axis_x);
     service_axis(&axis_y);
     service_axis(&axis_z);
+    if (home_state == HOME_X) {
+        if (positioning_is_homed(POSITION_AXIS_X)) {
+            home_start_y();
+        } else if (!axis_x.active ||
+                   (uint32_t)(to_ms_since_boot(get_absolute_time()) -
+                              home_stage_start_ms) > HOME_AXIS_TIMEOUT_MS) {
+            home_fail();
+        }
+    } else if (home_state == HOME_Y) {
+        if (positioning_is_homed(POSITION_AXIS_Y)) {
+            home_state = HOME_COMPLETE;
+        } else if (!axis_y.active ||
+                   (uint32_t)(to_ms_since_boot(get_absolute_time()) -
+                              home_stage_start_ms) > HOME_AXIS_TIMEOUT_MS) {
+            home_fail();
+        }
+    }
 }
 
 void stop_x(const char *args)
@@ -222,12 +400,51 @@ void stop_z(const char *args)
     stop_axis_now(&axis_z);
 }
 
+bool motor_stop_if_direction(position_axis_t id, bool positive)
+{
+    motor_axis_t *axis = id == POSITION_AXIS_X ? &axis_x :
+                         id == POSITION_AXIS_Y ? &axis_y : &axis_z;
+    if (axis->active && axis->dir_bit == positive) {
+        stop_axis_now(axis);
+        return true;
+    }
+    return false;
+}
+
+int32_t motor_inflight_step_delta(position_axis_t id, bool *exact)
+{
+    if (id > POSITION_AXIS_Z) {
+        *exact = false;
+        return 0;
+    }
+    const motor_axis_t *axis = id == POSITION_AXIS_X ? &axis_x :
+                               id == POSITION_AXIS_Y ? &axis_y : &axis_z;
+    const uint32_t saved = save_and_disable_interrupts();
+    const uint32_t amount = axis_executed_steps(axis, exact);
+    const int32_t delta = positioning_dir_increases_coord(id, axis->dir_bit) ?
+                          (int32_t)amount : -(int32_t)amount;
+    restore_interrupts(saved);
+    return delta;
+}
+
+bool motor_any_active(void)
+{
+    return axis_x.active || axis_y.active || axis_z.active;
+}
+
 void motor_stop_all(void)
 {
+    if (motor_is_homing_xy()) {
+        positioning_cancel_homing(POSITION_AXIS_X);
+        positioning_cancel_homing(POSITION_AXIS_Y);
+        home_state = HOME_FAILED;
+    }
     stop_axis_now(&axis_x);
     stop_axis_now(&axis_y);
     stop_axis_now(&axis_z);
+#ifdef EN_PIN
     gpio_put(EN_PIN, 1);
+#endif
 }
 
 static bool parse_motion(const char *args, bool finite,
@@ -276,7 +493,8 @@ static bool jog_command(motor_axis_t *axis, const char *args, bool z_axis)
                       &frequency, &ignored_steps)) {
         return false;
     }
-    return jog_axis(axis, direction, frequency);
+    return jog_axis(axis,
+        positioning_dir_for_coordinate(axis->id, direction), frequency);
 }
 
 bool jog_x(const char *args) { return jog_command(&axis_x, args, false); }
@@ -290,10 +508,27 @@ static bool finite_move(motor_axis_t *axis, const char *args, bool z_axis)
     if (!parse_motion(args, true, z_axis, &direction, &frequency, &steps)) {
         return false;
     }
+    const bool motor_dir = positioning_dir_for_coordinate(axis->id, direction);
     stop_axis_now(axis);
-    ramp_profile(axis->profile, direction, frequency, steps);
+    if (steps > positioning_steps_available(axis->id, motor_dir)) {
+        return false;
+    }
+    ramp_profile(axis->profile, motor_dir, frequency, steps);
+    const uint32_t saved = save_and_disable_interrupts();
+    if (steps > positioning_steps_available(axis->id, motor_dir)) {
+        restore_interrupts(saved);
+        return false;
+    }
+    axis->active = true;
+    axis->continuous = false;
+    axis->dir_bit = motor_dir;
+    axis->planned_steps = steps;
+    axis->needs_ramp = false;
+#ifdef EN_PIN
     gpio_put(EN_PIN, 0);
+#endif
     start_dma(axis->pio, axis->sm, axis->dma_chan, axis->profile, steps);
+    restore_interrupts(saved);
     return true;
 }
 
@@ -303,9 +538,11 @@ bool move_z(const char *args) { return finite_move(&axis_z, args, true); }
 
 void motor_setup(void)
 {
+#ifdef EN_PIN
     gpio_init(EN_PIN);
     gpio_put(EN_PIN, 1);
     gpio_set_dir(EN_PIN, GPIO_OUT);
+#endif
 
     motor_pio_offset = pio_add_program(motor_pio, &stepper_ctrl_program);
 
@@ -320,12 +557,20 @@ void motor_setup(void)
     dma_chan_y = dma_claim_unused_channel(true);
     dma_chan_z = dma_claim_unused_channel(true);
 
-    axis_x = (motor_axis_t){motor_pio, sm_x, dma_chan_x, step_profile_x,
-                            STEP_PIN_X, DIR_PIN_X, false, false, false, 0};
-    axis_y = (motor_axis_t){motor_pio, sm_y, dma_chan_y, step_profile_y,
-                            STEP_PIN_Y, DIR_PIN_Y, false, false, false, 0};
-    axis_z = (motor_axis_t){motor_pio, sm_z, dma_chan_z, step_profile_z,
-                            STEP_PIN_Z, DIR_PIN_Z, false, false, false, 0};
+    axis_x = (motor_axis_t){.pio=motor_pio, .sm=sm_x, .dma_chan=dma_chan_x,
+        .profile=step_profile_x, .step_pin=STEP_PIN_X, .dir_pin=DIR_PIN_X,
+        .id=POSITION_AXIS_X};
+    axis_y = (motor_axis_t){.pio=motor_pio, .sm=sm_y, .dma_chan=dma_chan_y,
+        .profile=step_profile_y, .step_pin=STEP_PIN_Y, .dir_pin=DIR_PIN_Y,
+        .id=POSITION_AXIS_Y};
+    axis_z = (motor_axis_t){.pio=motor_pio, .sm=sm_z, .dma_chan=dma_chan_z,
+        .profile=step_profile_z, .step_pin=STEP_PIN_Z, .dir_pin=DIR_PIN_Z,
+        .id=POSITION_AXIS_Z};
+    positioning_init();
+#if AUTO_HOME_XY_ON_STARTUP
+    /* Verify X/Y DIR polarity and switch wiring before enabling power. */
+    (void)motor_home_xy();
+#endif
 }
 
 void ramp_profile(uint32_t* profile_array,

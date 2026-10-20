@@ -13,7 +13,7 @@
 #define U4RK_SAMPLE_COUNT             4096u   /* FFT/envelope length */
 #define U4RK_RAW_SAMPLE_COUNT         8000u   /* raw-only length */
 #define U4RK_MAX_SAMPLE_COUNT         U4RK_RAW_SAMPLE_COUNT
-#define U4RK_SAMPLE_RATE_HZ           60000000u
+#define U4RK_SAMPLE_RATE_HZ           30000000u
 #define U4RK_PROTOCOL_VERSION         1u
 #define U4RK_HEADER_SIZE              64u
 /* Largest payload across modes: 4096 floats (16384 B) > 8000 u16 (16000 B). */

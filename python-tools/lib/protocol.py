@@ -1,6 +1,6 @@
-"""pic0rick DSP-build host protocol.
+"""pic0rick USB framing and payload decoding (no host-side signal DSP).
 
-Parses the binary framed protocol emitted by the RP2350 DSP firmware
+Parses the binary framed protocol emitted by the RP2350 firmware
 (``-DDSP`` build): a 64-byte little-endian header + CRC32 payload, plus the
 ``OK …`` / ``ERR …`` text control lines and the ``status`` line.
 
@@ -170,7 +170,11 @@ class FrameReader:
 
 
 def alaw_decode(encoded, reference: float) -> np.ndarray:
-    """Expand positive-envelope A-law bytes back into ADC-count amplitude."""
+    """Decompress an onboard A-law envelope for plotting (ADC counts).
+
+    This is payload decoding, not computing an envelope or filtering on the PC.
+    The reference is carried in each frame header, not hardcoded by the app.
+    """
     y = np.asarray(encoded, dtype=np.float64) / 255.0
     denominator = 1.0 + np.log(A_LAW_A)
     crossover = 1.0 / denominator

@@ -4,7 +4,7 @@ import unittest
 import zlib
 import numpy as np
 from . import common
-from lib import dsp
+from lib import protocol as dsp
 
 
 class DataTests(unittest.TestCase):

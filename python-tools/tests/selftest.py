@@ -1,6 +1,6 @@
 import re
 from . import common
-from lib.dsp import SELFTEST_NAMES, FLAG_SELFTEST
+from lib.protocol import SELFTEST_NAMES, FLAG_SELFTEST
 
 
 def run(args):
