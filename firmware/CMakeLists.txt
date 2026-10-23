@@ -26,7 +26,6 @@ include(pico_sdk_import.cmake)
 project(adc-pulse C CXX ASM)
 pico_sdk_init()
 
-# Fork version is intentionally simple. Record releases using Git tags.
 set(PIC0RICK_FIRMWARE_VERSION "0.1.11-fork" CACHE STRING "Firmware version")
 
 # CMSIS-DSP implements the RP2350 float32 Hilbert-envelope pipeline.
@@ -103,8 +102,6 @@ target_link_libraries(p0rk_dsp PUBLIC
     cmsisdsp_p0rk
 )
 
-# PIO2 controls the gantry. PIO0 and PIO1 remain dedicated to ultrasound
-# acquisition and the pulser, respectively.
 add_library(p0rk_gantry STATIC
     src/gantry/motors.c
     src/gantry/positioning.c
