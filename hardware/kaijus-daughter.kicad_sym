@@ -1,0 +1,384 @@
+(kicad_symbol_lib
+	(version 20231120)
+	(generator "kicad_symbol_editor")
+	(symbol "BTT_TMC2209_V1.3_Module"
+				(pin_names
+					(offset 1.016)
+				)
+				(exclude_from_sim no)
+				(in_bom yes)
+				(on_board yes)
+				(in_pos_files yes)
+				(duplicate_pin_numbers_are_jumpers no)
+				(property "Reference" "U"
+					(at 0 17.78 0)
+					(show_name no)
+					(do_not_autoplace no)
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(property "Value" "BTT_TMC2209_V1.3_Module"
+					(at 0 15.24 0)
+					(show_name no)
+					(do_not_autoplace no)
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(property "Footprint" "kaijus-daughter:BTT_TMC2209_V1.3_2x08_P2.54mm"
+					(at 0 0 0)
+					(show_name no)
+					(do_not_autoplace no)
+					(hide yes)
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(property "Datasheet" "https://github.com/bigtreetech/docs/blob/master/docs/TMC2209.md"
+					(at 0 0 0)
+					(show_name no)
+					(do_not_autoplace no)
+					(hide yes)
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(property "Description" "BIGTREETECH TMC2209 V1.3 plug-in stepper driver MODULE; pins J1.1-J1.8 / J2.1-J2.8 represent header positions; DIAG pad omitted; footprint has 16 numbered pads"
+					(at 0 0 0)
+					(show_name no)
+					(do_not_autoplace no)
+					(hide yes)
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(symbol "BTT_TMC2209_V1.3_Module_0_1"
+					(rectangle
+						(start -12.7 11.43)
+						(end 12.7 -11.43)
+						(stroke
+							(width 0.254)
+							(type default)
+						)
+						(fill
+							(type background)
+						)
+					)
+					(polyline
+						(pts
+							(xy -10.16 11.43) (xy 10.16 11.43)
+						)
+						(stroke
+							(width 0.1524)
+							(type default)
+						)
+						(fill
+							(type none)
+						)
+					)
+				)
+				(symbol "BTT_TMC2209_V1.3_Module_1_1"
+					
+					(pin input line
+						(at -15.24 8.89 0)
+						(length 2.54)
+						(name "EN"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+						(number "J1.1"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+					)
+					(pin input line
+						(at -15.24 6.35 0)
+						(length 2.54)
+						(name "MS1"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+						(number "J1.2"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+					)
+					(pin input line
+						(at -15.24 3.81 0)
+						(length 2.54)
+						(name "MS2"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+						(number "J1.3"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+					)
+					(pin passive line
+						(at -15.24 1.27 0)
+						(length 2.54)
+						(name "RX"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+						(number "J1.4"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+					)
+					(pin passive line
+						(at -15.24 -1.27 0)
+						(length 2.54)
+						(name "TX"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+						(number "J1.5"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+					)
+					(pin input line
+						(at -15.24 -3.81 0)
+						(length 2.54)
+						(name "CLK"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+						(number "J1.6"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+					)
+					(pin input line
+						(at -15.24 -6.35 0)
+						(length 2.54)
+						(name "STEP"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+						(number "J1.7"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+					)
+					(pin input line
+						(at -15.24 -8.89 0)
+						(length 2.54)
+						(name "DIR"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+						(number "J1.8"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+					)
+					(pin power_in line
+						(at 15.24 8.89 180)
+						(length 2.54)
+						(name "VM"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+						(number "J2.1"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+					)
+					(pin power_in line
+						(at 15.24 6.35 180)
+						(length 2.54)
+						(name "GND"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+						(number "J2.2"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+					)
+					(pin output line
+						(at 15.24 3.81 180)
+						(length 2.54)
+						(name "A2"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+						(number "J2.3"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+					)
+					(pin output line
+						(at 15.24 1.27 180)
+						(length 2.54)
+						(name "A1"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+						(number "J2.4"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+					)
+					(pin output line
+						(at 15.24 -1.27 180)
+						(length 2.54)
+						(name "B1"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+						(number "J2.5"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+					)
+					(pin output line
+						(at 15.24 -3.81 180)
+						(length 2.54)
+						(name "B2"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+						(number "J2.6"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+					)
+					(pin power_in line
+						(at 15.24 -6.35 180)
+						(length 2.54)
+						(name "VIO"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+						(number "J2.7"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+					)
+					(pin power_in line
+						(at 15.24 -8.89 180)
+						(length 2.54)
+						(name "GND"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+						(number "J2.8"
+							(effects
+								(font
+									(size 1.016 1.016)
+								)
+							)
+						)
+					)
+				)
+				(embedded_fonts no)
+			)
+)

@@ -4,6 +4,7 @@ from . import common
 
 MODULES = {
     'capture': 'capture',
+    'scan': 'scan',
     'integrity': 'integrity',
     'snr': 'snr',
     'gain': 'gain',
@@ -29,7 +30,8 @@ def run(argv):
         return 2
     module = importlib.import_module('.' + MODULES[name], __package__)
     parser = argparse.ArgumentParser(prog='python acq.py --' + name)
-    common.arguments(parser)
+    if name != 'scan':
+        common.arguments(parser)
     if hasattr(module, 'arguments'):
         module.arguments(parser)
     args = parser.parse_args(argv[1:])

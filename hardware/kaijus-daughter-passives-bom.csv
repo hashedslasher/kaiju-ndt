@@ -1,0 +1,10 @@
+﻿Part Number,Amount,Value,PCB Label,KiCad Footprint
+RC0805FR-071KL,3,"1 kΩ, 1%, 0805","R13, R14, R15",Resistor_SMD:R_0805_2012Metric
+RC0805FR-074K7L,10,"4.7 kΩ, 1%, 0805","R1, R2, R4, R5, R18, R19, R20, R21, R22, R23",Resistor_SMD:R_0805_2012Metric
+RC0805FR-0710KL,2,"10 kΩ, 1%, 0805","R3, R12",Resistor_SMD:R_0805_2012Metric
+CL21B104KBCNFNC,8,"100 nF, 50 V, X7R, 0805","C1, C3, C4, C7, C8, C9, C12, C19",Capacitor_SMD:C_0805_2012Metric
+CL32B106KBJZW6E,1,"10 µF, 50 V, X7R, 1210",C2,Capacitor_SMD:C_1210_3225Metric
+TMK212BBJ106MG-T,1,"10 µF, 25 V, X5R, 0805",C5,Capacitor_SMD:C_0805_2012Metric
+ESK107M016AC3AA,1,"100 µF, 16 V, electrolytic, THT",C6,Capacitor_THT:CP_Radial_D5.0mm_P2.00mm
+EEU-FR1H101B,5,"100 µF, 50 V, electrolytic, THT","C13, C14, C16, C17, C18",Capacitor_THT:CP_Radial_D8.0mm_P5.00mm
+C0805C270J5GACTU,2,"27 pF, 50 V, C0G, 0805","C11, C15",Capacitor_SMD:C_0805_2012Metric

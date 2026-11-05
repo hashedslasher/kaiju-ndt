@@ -16,6 +16,8 @@
 #include "motors.h"
 #include "u4rk.h"
 #include "usb_transport.h"
+#include "scan/scan.h"
+#include "scan/scan.c"
 
 #define U4RK_COMMAND_BUFFER_SIZE 160u
 #define U4RK_RESPONSE_BUFFER_SIZE 512u
@@ -430,7 +432,9 @@ static void send_help(void) {
         "jog_x/jog_y <plus|minus> <hz>|jog_z <up|down> <hz>|"
         "move_x/move_y <plus|minus> <hz> <steps>|"
         "move_z <up|down> <hz> <steps>|stop_x|stop_y|stop_z|stop_all|"
-        "pos|home|pos_zero <x|y|z|all>");
+        "pos|home|pos_zero <x|y|z|all>|"
+        "scan <nx> <ny> <dx_steps> <dy_steps> <hz> "
+        "<gate_start> <gate_end> <settle_ms>|scan stop");
 }
 
 static void send_status(void) {
@@ -503,9 +507,63 @@ static void process_command(char *line) {
     }
 
     const char *motor_args = save;
+    if (strcmp(first, "scan") == 0) {
+        char *arg = strtok_r(NULL, " \t", &save);
+        if (arg && strcmp(arg, "stop") == 0) {
+            scan_abort();
+            return;
+        }
+        scan_config_t cfg;
+        uint32_t values[8];
+        if (!arg) {
+            send_error("ARG", "scan nx ny dx_steps dy_steps hz gate_start gate_end settle_ms");
+            return;
+        }
+        bool valid = parse_u32(arg, &values[0]);
+        for (unsigned i = 1; i < 8; ++i) {
+            arg = strtok_r(NULL, " \t", &save);
+            valid = parse_u32(arg, &values[i]) && valid;
+        }
+        if (strtok_r(NULL, " \t", &save) != NULL) valid = false;
+        if (!valid) {
+            send_error("ARG", "scan requires eight nonnegative integers");
+            return;
+        }
+        cfg = (scan_config_t){
+            .nx = values[0], .ny = values[1],
+            .dx_steps = values[2], .dy_steps = values[3],
+            .speed_hz = values[4], .gate_start = values[5],
+            .gate_end = values[6], .settle_ms = values[7],
+        };
+        if (operation_busy() || stream.active) {
+            send_error("BUSY", "acquisition or transfer in progress");
+            return;
+        }
+        const char *error = NULL;
+        if (!scan_start(&cfg, &error)) {
+            send_error("SCAN", "%s", error ? error : "cannot start");
+            return;
+        }
+        if (!send_ok("scan started nx=%lu ny=%lu sample_rate=60000000",
+                     (unsigned long)cfg.nx, (unsigned long)cfg.ny)) {
+            scan_abort();
+        }
+        return;
+    }
+    if (scan_active()) {
+        if (strcmp(first, "stop_all") == 0 ||
+            strcmp(first, "stop_x") == 0 ||
+            strcmp(first, "stop_y") == 0 ||
+            strcmp(first, "stop_z") == 0) {
+            scan_abort();
+        } else {
+            send_error("BUSY", "scan active; use scan stop");
+        }
+        return;
+    }
+
 
     if (strcmp(first, "pos") == 0) {
-        /* 'pos' works even if a stream is active. */
         send_ok("x=%ld y=%ld z=%ld homed=%u/%u/%u exact=%u/%u/%u "
                 "limit_x0=%u limit_y0=%u xmax=%u ymax=%u home=%s",
                 (long)positioning_get_steps(POSITION_AXIS_X),
@@ -938,6 +996,7 @@ static void cancel_usb_session(void) {
     selftest_frame_pending = false;
     legacy_capture_pending = false;
     command_length = 0;
+    scan_abort();
     u4rk_capture_abort();
     if (capture_inflight) {
         u4rk_pipeline_release_raw(capture_raw_index);
@@ -1007,6 +1066,7 @@ int main(void) {
         poll_output();
         finish_stop_or_fault();
         poll_command_input();
+        scan_poll();
         schedule_stream();
         schedule_selftest();
         tight_loop_contents();

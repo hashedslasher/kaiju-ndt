@@ -184,5 +184,54 @@ class Pic0rick:
         if not 1 <= int(frequency) <= 50000:
             raise ValueError('Frequency must be 1..50000 Hz')
 
+    def scan(self, nx, ny, dx_steps, dy_steps, speed_hz,
+             gate_start, gate_end, settle_ms=10):
+        values = (nx, ny, dx_steps, dy_steps, speed_hz,
+                  gate_start, gate_end, settle_ms)
+        if any(type(value) is not int or value < 0 for value in values):
+            raise ValueError('Scan arguments must be nonnegative integers')
+        if nx < 1 or ny < 1 or nx * ny > 100000:
+            raise ValueError('Invalid scan dimensions')
+        if not 0 <= gate_start < gate_end <= 8000:
+            raise ValueError('Gate must be inside the 8000-sample raw capture')
+        command = 'scan ' + ' '.join(map(str, values))
+        old_timeout = self.ser.timeout
+        self.ser.timeout = max(30.0, (max(dx_steps, dy_steps) / 100.0) + 20.0)
+        complete = False
+        try:
+            self.command(command)
+            received = 0
+            while True:
+                line = self.ser.readline().decode('ascii', 'replace').strip()
+                if not line:
+                    raise TimeoutError('Timed out waiting for scan point')
+                parts = line.split()
+                if parts[0] == 'SCAN_POINT' and len(parts) == 6:
+                    row, col, x, y, amplitude = map(int, parts[1:])
+                    received += 1
+                    yield {
+                        'row': row, 'col': col, 'x_steps': x,
+                        'y_steps': y, 'amplitude_pp': amplitude,
+                    }
+                elif parts[0] == 'SCAN_DONE' and len(parts) == 2:
+                    if received != nx * ny or int(parts[1]) != received:
+                        raise RuntimeError(f'Incomplete scan: {received}/{nx * ny}')
+                    complete = True
+                    return
+                elif parts[0] in ('SCAN_ABORT', 'SCAN_ERROR'):
+                    raise RuntimeError(line)
+                elif parts[0] == 'ERR':
+                    raise RuntimeError(line)
+                else:
+                    raise ValueError(f'Unexpected scan reply: {line}')
+        finally:
+            if not complete:
+                try:
+                    self.ser.write(b'scan stop\n')
+                    self.ser.flush()
+                except (OSError, serial.SerialException):
+                    pass
+            self.ser.timeout = old_timeout
+
     def close(self):
         self.ser.close()
