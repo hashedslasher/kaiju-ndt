@@ -42,7 +42,7 @@ static motor_axis_t axis_y;
 static motor_axis_t axis_z;
 
 typedef enum {
-    HOME_IDLE = 0, HOME_X, HOME_Y, HOME_COMPLETE, HOME_FAILED
+    HOME_IDLE = 0, HOME_RUNNING, HOME_COMPLETE, HOME_FAILED
 } home_state_t;
 static home_state_t home_state = HOME_IDLE;
 static uint32_t home_stage_start_ms;
@@ -281,50 +281,43 @@ static void home_fail(void)
     home_state = HOME_FAILED;
 }
 
-static void home_start_y(void)
-{
-    if (positioning_switch_active(POSITION_AXIS_Y)) {
-        positioning_set_zero(POSITION_AXIS_Y);
-        home_state = HOME_COMPLETE;
-        return;
-    }
-    positioning_begin_homing(POSITION_AXIS_Y);
-    home_state = HOME_Y;
-    home_stage_start_ms = to_ms_since_boot(get_absolute_time());
-    if (!jog_axis(&axis_y, Y_DIR_TOWARD_ZERO, HOME_SPEED_HZ)) {
-        home_fail();
-    }
-}
-
 bool motor_home_xy(void)
 {
     if (axis_x.active || axis_y.active || axis_z.active) return false;
     positioning_cancel_homing(POSITION_AXIS_X);
     positioning_cancel_homing(POSITION_AXIS_Y);
-    if (positioning_switch_active(POSITION_AXIS_X)) {
+    const bool x_at_zero = positioning_switch_active(POSITION_AXIS_X);
+    const bool y_at_zero = positioning_switch_active(POSITION_AXIS_Y);
+    if (x_at_zero) {
         positioning_set_zero(POSITION_AXIS_X);
-        home_start_y();
     } else {
         positioning_begin_homing(POSITION_AXIS_X);
-        home_state = HOME_X;
-        home_stage_start_ms = to_ms_since_boot(get_absolute_time());
-        if (!jog_axis(&axis_x, X_DIR_TOWARD_ZERO, HOME_SPEED_HZ)) {
-            home_fail();
-        }
+    }
+    if (y_at_zero) {
+        positioning_set_zero(POSITION_AXIS_Y);
+    } else {
+        positioning_begin_homing(POSITION_AXIS_Y);
+    }
+    home_state = HOME_RUNNING;
+    home_stage_start_ms = to_ms_since_boot(get_absolute_time());
+    if ((!x_at_zero && !jog_axis(&axis_x, X_DIR_TOWARD_ZERO, HOME_SPEED_HZ)) ||
+        (!y_at_zero && !jog_axis(&axis_y, Y_DIR_TOWARD_ZERO, HOME_SPEED_HZ))) {
+        home_fail();
+    } else if (x_at_zero && y_at_zero) {
+        home_state = HOME_COMPLETE;
     }
     return home_state != HOME_FAILED;
 }
 
 bool motor_is_homing_xy(void)
 {
-    return home_state == HOME_X || home_state == HOME_Y;
+    return home_state == HOME_RUNNING;
 }
 
 const char *motor_home_status(void)
 {
     switch (home_state) {
-        case HOME_X: return "homing-x";
-        case HOME_Y: return "homing-y";
+        case HOME_RUNNING: return "homing-xy";
         case HOME_COMPLETE: return "complete";
         case HOME_FAILED: return "failed";
         default: return "idle";
@@ -336,22 +329,16 @@ void motor_service(void)
     service_axis(&axis_x);
     service_axis(&axis_y);
     service_axis(&axis_z);
-    if (home_state == HOME_X) {
-        if (positioning_is_homed(POSITION_AXIS_X)) {
-            home_start_y();
-        } else if (!axis_x.active ||
-                   (uint32_t)(to_ms_since_boot(get_absolute_time()) -
-                              home_stage_start_ms) > HOME_AXIS_TIMEOUT_MS) {
-            home_fail();
-        }
-    } else if (home_state == HOME_Y) {
-        if (positioning_is_homed(POSITION_AXIS_Y)) {
-            home_state = HOME_COMPLETE;
-        } else if (!axis_y.active ||
-                   (uint32_t)(to_ms_since_boot(get_absolute_time()) -
-                              home_stage_start_ms) > HOME_AXIS_TIMEOUT_MS) {
-            home_fail();
-        }
+    if (home_state != HOME_RUNNING) return;
+    const bool x_homed = positioning_is_homed(POSITION_AXIS_X);
+    const bool y_homed = positioning_is_homed(POSITION_AXIS_Y);
+    if (x_homed && y_homed) {
+        home_state = HOME_COMPLETE;
+    } else if ((!x_homed && !axis_x.active) ||
+               (!y_homed && !axis_y.active) ||
+               (uint32_t)(to_ms_since_boot(get_absolute_time()) -
+                          home_stage_start_ms) > HOME_AXIS_TIMEOUT_MS) {
+        home_fail();
     }
 }
 
@@ -540,9 +527,6 @@ void motor_setup(void)
         .profile=step_profile_z, .step_pin=STEP_PIN_Z, .dir_pin=DIR_PIN_Z,
         .id=POSITION_AXIS_Z};
     positioning_init();
-#if AUTO_HOME_XY_ON_STARTUP
-    (void)motor_home_xy();
-#endif
 }
 
 void ramp_profile(uint32_t* profile_array,

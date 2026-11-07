@@ -119,7 +119,7 @@ class AScanApp(QtWidgets.QMainWindow):
 
         self.cmd_input = OverlayLineEdit(self)
         self.cmd_input.setPlaceholderText(
-            "raw | fft | a-law | gain N | window start end | pulse_rate Hz"
+            "raw | fft | a-law | home | zero z | pos | stop_all"
         )
 
         self.cmd_input.setStyleSheet("""
@@ -162,7 +162,7 @@ class AScanApp(QtWidgets.QMainWindow):
 
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.update_frame)
-        self.timer.start(1000)
+        self.timer.start(1)
 
     def init_controller(self):
 
@@ -433,9 +433,30 @@ class AScanApp(QtWidgets.QMainWindow):
                 self.timer.setInterval(round(1000.0 / rate))
                 print(f'[Acquisition] Display refresh {rate:g} Hz')
 
+            elif cmd == 'home' and len(parts) == 1:
+                reply = self.probe.home()
+                print(f'[Gantry] {reply}')
+                self.statusBar().showMessage('X/Y homing started', 5000)
+
+            elif cmd == 'pos' and len(parts) == 1:
+                reply = self.probe.position()
+                print(f'[Gantry] {reply}')
+                self.statusBar().showMessage(reply, 5000)
+
+            elif (cmd in ('z=0', 'zero_z') and len(parts) == 1) or (cmd in ('zero', 'pos_zero') and len(parts) == 2 and parts[1].lower() == 'z'):
+                reply = self.probe.zero('z')
+                print(f'[Gantry] {reply}')
+                self.statusBar().showMessage('Z position set to 0', 5000)
+
+            elif cmd in ('stop', 'stop_all') and len(parts) == 1:
+                reply = self.probe.stop('all')
+                print(f'[Gantry] {reply}')
+                self.statusBar().showMessage('Motors stopped', 5000)
+
             elif cmd == 'help' and len(parts) == 1:
                 print('Commands: raw | fft | a-law | gain N | pon N | poff N '
-                      '| damp N | window START_US END_US | pulse_rate HZ')
+                      '| damp N | window START_US END_US | pulse_rate HZ '
+                      '| home | pos | zero z | z=0 | stop_all')
             else:
                 raise ValueError(f'Unknown or incomplete command: {text}')
         except (ValueError, RuntimeError, TimeoutError, OSError) as exc:

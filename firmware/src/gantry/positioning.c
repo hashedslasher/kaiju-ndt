@@ -179,6 +179,4 @@ void positioning_init(void)
     gpio_set_irq_enabled(
         LIMIT_PIN_Y, GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE, true);
 
-    if (switch_pressed(LIMIT_PIN_X)) positioning_set_zero(POSITION_AXIS_X);
-    if (switch_pressed(LIMIT_PIN_Y)) positioning_set_zero(POSITION_AXIS_Y);
 }

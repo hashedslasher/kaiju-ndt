@@ -1,0 +1,19 @@
+Self-test: python acq.py --selftest
+Capture: python acq.py --capture --shots 128 --output data/steel.csv
+Integrity: python acq.py --integrity --csv data/steel.csv
+SNR: python acq.py --snr --csv data/real_steel.csv --echo-us 88 98 --noise-us 104 110 --plot
+Gain: python acq.py --gain --plot
+TOF: python acq.py --tof --csv data/real_steel.csv --echo-us 88 98 --plot
+Repeatability: python acq.py --repeatability --csv data/real_steel.csv --echo-us 88 98 --noise-us 104 110 --plot
+Averaging: python acq.py --averaging --csv data/real_steel.csv --echo-us 88 98 --noise-us 104 110 --plot
+Alignment: python acq.py --alignment --csv data/real_steel.csv --echo-us 88 98 --plot
+Bandwidth: python acq.py --bandwidth --csv data/real_steel.csv --echo-us 88 98 --plot
+Focus: python acq.py --focus --csv data/focus.csv --echo-us 88 98
+Contrast: python acq.py --contrast --csv data/contrast.csv --echo-us 88 98
+PRF: python acq.py --prf --mode raw --rates 10,25,50,75,100 --seconds 3
+Gantry: python acq.py --gantry
+Edge: python acq.py --edge --csv data/edge.csv --plot
+Motion noise: python acq.py --motion_noise --csv data/motion_noise.csv
+Simulated C-scan: python tests/simulate_scan.py
+C-scan from CSV: python acq.py --scan --csv results/demo_cscan.csv
+Unit tests: python -m unittest discover -s tests -p "test_*.py"

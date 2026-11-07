@@ -160,6 +160,17 @@ class Pic0rick:
         self.ser.write(b'stream stop\n')
         self.ser.flush()
 
+    def home(self):
+        return self.command('home')
+
+    def position(self):
+        return self.command('pos')
+
+    def zero(self, axis='z'):
+        if axis not in ('x', 'y', 'z', 'all'):
+            raise ValueError(axis)
+        return self.command(f'pos_zero {axis}')
+
     def jog(self, axis, direction, frequency):
         self._validate_motion(axis, direction, frequency)
         return self.command(f'jog_{axis} {direction} {int(frequency)}')
