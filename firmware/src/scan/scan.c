@@ -3,8 +3,10 @@
 #include <stdio.h>
 
 #include "acquisition.h"
+#include "dsp2.h"
 #include "motors.h"
 #include "positioning.h"
+#include "protocol.h"
 #include "u4rk.h"
 #include "usb_transport.h"
 #include "pico/stdlib.h"
@@ -13,8 +15,11 @@ typedef enum {
     SCAN_IDLE,
     SCAN_SETTLE,
     SCAN_CAPTURE,
+    SCAN_WAIT_NEXT_CAPTURE,
     SCAN_MOVE,
 } scan_phase_t;
+
+#define SCAN_MIN_PULSE_INTERVAL_US 2000u
 
 static scan_config_t scan_config;
 static scan_phase_t scan_phase;
@@ -26,6 +31,10 @@ static uint32_t scan_column;
 static uint32_t scan_points;
 static uint64_t scan_deadline;
 static uint64_t scan_move_deadline;
+static uint64_t scan_capture_timestamp;
+static uint64_t scan_next_capture_us;
+static uint32_t scan_averages_done;
+static uint8_t scan_frame_header[U4RK_HEADER_SIZE];
 
 static bool scan_send(const char *message) {
     if (!u4rk_usb_connected()) return false;
@@ -69,6 +78,10 @@ bool scan_start(const scan_config_t *cfg, const char **error) {
         cfg->speed_hz == 0 || cfg->speed_hz > MAX_MOTOR_FREQ_HZ ||
         cfg->gate_start >= cfg->gate_end ||
         cfg->gate_end > U4RK_RAW_SAMPLE_COUNT ||
+        ((cfg->flaw_gate_start != 0 || cfg->flaw_gate_end != 0) &&
+         (cfg->flaw_gate_start >= cfg->flaw_gate_end ||
+          cfg->flaw_gate_end > U4RK_RAW_SAMPLE_COUNT)) ||
+        cfg->averages == 0 || cfg->averages > U4RK_DSP2_MAX_AVERAGES ||
         cfg->settle_ms > 60000u) {
         *error = "invalid scan parameters";
         return false;
@@ -103,6 +116,7 @@ bool scan_start(const scan_config_t *cfg, const char **error) {
     scan_row = 0;
     scan_column = 0;
     scan_points = 0;
+    scan_averages_done = 0;
     scan_deadline = time_us_64() + (uint64_t)cfg->settle_ms * 1000u;
     scan_phase = SCAN_SETTLE;
     return true;
@@ -160,10 +174,31 @@ void scan_poll(void) {
             scan_fail("POSITION_MISMATCH");
             return;
         }
+        if (!u4rk_dsp2_begin(U4RK_RAW_SAMPLE_COUNT, scan_config.averages)) {
+            scan_fail("AVERAGE_INIT");
+            return;
+        }
+        scan_averages_done = 0;
+        scan_capture_timestamp = now;
+        scan_next_capture_us = now + SCAN_MIN_PULSE_INTERVAL_US;
         if (!u4rk_capture_start(scan_samples, U4RK_RAW_SAMPLE_COUNT)) {
             scan_fail("CAPTURE_START");
             return;
         }
+        scan_phase = SCAN_CAPTURE;
+        return;
+    }
+    if (scan_phase == SCAN_WAIT_NEXT_CAPTURE) {
+        if (now < scan_next_capture_us) return;
+        if (!scan_position_valid()) {
+            scan_fail("POSITION_MISMATCH");
+            return;
+        }
+        if (!u4rk_capture_start(scan_samples, U4RK_RAW_SAMPLE_COUNT)) {
+            scan_fail("CAPTURE_START");
+            return;
+        }
+        scan_next_capture_us = now + SCAN_MIN_PULSE_INTERVAL_US;
         scan_phase = SCAN_CAPTURE;
         return;
     }
@@ -174,22 +209,70 @@ void scan_poll(void) {
         scan_fail("CAPTURE_DMA");
         return;
     }
+    if (!u4rk_dsp2_add(scan_samples, U4RK_RAW_SAMPLE_COUNT)) {
+        scan_fail("AVERAGE_ADD");
+        return;
+    }
+    ++scan_averages_done;
+    if (scan_averages_done < scan_config.averages) {
+        scan_phase = SCAN_WAIT_NEXT_CAPTURE;
+        return;
+    }
+    if (!u4rk_dsp2_finish(scan_samples, U4RK_RAW_SAMPLE_COUNT)) {
+        scan_fail("AVERAGE_FINISH");
+        return;
+    }
     uint16_t min_value = UINT16_MAX;
     uint16_t max_value = 0;
     for (uint32_t i = scan_config.gate_start; i < scan_config.gate_end; ++i) {
-        uint16_t sample = (scan_samples[i] >> 1) & 0x3ffu;
+        uint16_t sample = scan_samples[i];
         if (sample < min_value) min_value = sample;
         if (sample > max_value) max_value = sample;
     }
+    uint16_t flaw_min = UINT16_MAX;
+    uint16_t flaw_max = 0;
+    for (uint32_t i = scan_config.flaw_gate_start;
+         i < scan_config.flaw_gate_end; ++i) {
+        uint16_t sample = scan_samples[i];
+        if (sample < flaw_min) flaw_min = sample;
+        if (sample > flaw_max) flaw_max = sample;
+    }
+    uint16_t flaw_pp = scan_config.flaw_gate_end > scan_config.flaw_gate_start
+        ? (uint16_t)(flaw_max - flaw_min) : 0;
     char line[120];
-    snprintf(line, sizeof(line), "SCAN_POINT %lu %lu %ld %ld %u\r\n",
+    snprintf(line, sizeof(line), "SCAN_POINT %lu %lu %ld %ld %u %u\r\n",
              (unsigned long)scan_row, (unsigned long)scan_column,
              (long)positioning_get_steps(POSITION_AXIS_X),
              (long)positioning_get_steps(POSITION_AXIS_Y),
-             (unsigned)(max_value - min_value));
+             (unsigned)(max_value - min_value), (unsigned)flaw_pp);
     if (!scan_send(line)) {
         scan_finish(NULL);
         return;
+    }
+    if (scan_config.send_waveforms) {
+        uint32_t sum = 0;
+        for (uint32_t i = 0; i < U4RK_RAW_SAMPLE_COUNT; ++i)
+            sum += scan_samples[i];
+        u4rk_frame_header_t header = {
+            .payload_type = U4RK_PAYLOAD_RAW,
+            .flags = U4RK_FLAG_PULSER_ARMED,
+            .sequence = scan_points,
+            .sample_count = U4RK_RAW_SAMPLE_COUNT,
+            .sample_rate_hz = U4RK_SAMPLE_RATE_HZ,
+            .payload_bytes = sizeof(scan_samples),
+            .capture_timestamp_us = scan_capture_timestamp,
+            .adc_dc_mean = (float)sum / U4RK_RAW_SAMPLE_COUNT,
+            .pulse = u4rk_pulser_get_config(),
+            .payload_crc32 = u4rk_crc32((const uint8_t *)scan_samples,
+                                       sizeof(scan_samples)),
+        };
+        u4rk_serialize_header(scan_frame_header, &header);
+        if (!u4rk_usb_write_blocking(scan_frame_header,
+                                     sizeof(scan_frame_header), 2000) ||
+            !u4rk_usb_write_blocking(scan_samples, sizeof(scan_samples), 2000)) {
+            scan_finish(NULL);
+            return;
+        }
     }
     ++scan_points;
     if (scan_points == scan_config.nx * scan_config.ny) {

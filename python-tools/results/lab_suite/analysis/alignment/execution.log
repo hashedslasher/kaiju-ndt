@@ -1,0 +1,3 @@
+results/lab_suite/analysis/alignment/alignment_summary_20261108_163648.csv
+{'max_abs_lag_samples': 71, 'std_lag_samples': np.float64(20.525)}
+results/lab_suite/analysis/alignment/alignment_20261108_163648.png

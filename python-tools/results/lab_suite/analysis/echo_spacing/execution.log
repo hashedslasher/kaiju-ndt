@@ -1,0 +1,3 @@
+results/lab_suite/analysis/echo_spacing/echo_spacing_per_shot.csv
+results/lab_suite/analysis/echo_spacing/echo_spacing_summary.csv
+{'shots': 500, 'expected_spacing_us': 1.93354, 'measured_spacing_us_mean': 1.9743, 'measured_thickness_mm_mean': 6.23879, 'thickness_sd_mm': 0.03638, 'thickness_error_percent': 2.108, 'note': 'Tentative echo identification; verify front-wall and back-wall labels'}

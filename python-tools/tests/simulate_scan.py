@@ -16,13 +16,18 @@ def fake_points(nx, ny, dx_steps, dy_steps):
         columns = range(nx) if row % 2 == 0 else range(nx - 1, -1, -1)
         for col in columns:
             amp = 260.0
+            flaw = 8.0
             for cx, cy, radius in holes:
-                amp -= 180.0 * np.exp(-0.5 * (((col - cx)**2 +
-                                                (row - cy)**2) / radius**2))
+                factor = np.exp(-0.5 * (((col - cx)**2 +
+                                         (row - cy)**2) / radius**2))
+                amp -= 180.0 * factor
+                flaw += 170.0 * factor
             yield {'row': row, 'col': col,
                    'x_steps': col * dx_steps,
                    'y_steps': row * dy_steps,
-                   'amplitude_pp': int(max(0, amp + rng.normal(0, 5)))}
+                   'amplitude_pp': int(max(0, amp + rng.normal(0, 5))),
+                   'flaw_pp': int(max(0, flaw + rng.normal(0, 3))),
+                   'averages': 16}
 
 
 def main():

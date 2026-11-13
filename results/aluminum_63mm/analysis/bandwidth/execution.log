@@ -1,0 +1,3 @@
+{'peak_mhz': np.float64(8.15186), 'lower_6db_mhz': np.float64(5.53711), 'upper_6db_mhz': np.float64(9.25781), 'bandwidth_percent': np.float64(50.297)}
+results/aluminum_63mm/analysis/bandwidth/bandwidth_summary_20261108_163032.csv
+results/aluminum_63mm/analysis/bandwidth/bandwidth_20261108_163032.png

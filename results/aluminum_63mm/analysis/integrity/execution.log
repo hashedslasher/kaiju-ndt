@@ -1,0 +1,2 @@
+{'frames': 500, 'sample_count': 8000, 'sample_rate_hz': np.float64(60000000.0), 'sequence_gaps': 0, 'firmware_drop_delta': 0, 'clipped_percent': np.float64(0.01538), 'min_adc': 0, 'max_adc': 1023}
+results/aluminum_63mm/analysis/integrity/integrity_summary_20261108_163024.csv

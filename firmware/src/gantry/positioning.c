@@ -1,6 +1,8 @@
 #include "positioning.h"
+#include <stddef.h>
 
 #include "motors.h"
+#include "bridge.h"
 #include "hardware/gpio.h"
 #include "hardware/sync.h"
 #include "pico/stdlib.h"
@@ -9,6 +11,9 @@ static volatile int32_t position_steps[3] = {0, 0, 0};
 static volatile bool position_exact[3] = {false, false, false};
 static volatile bool position_homed[3] = {false, false, false};
 static volatile bool position_homing[3] = {false, false, false};
+static bool limit_y_active;
+static bool limit_y_valid;
+static uint64_t last_limit_y_poll_us;
 
 static const int32_t min_position[3] = {
     X_MIN_POSITION_STEPS, Y_MIN_POSITION_STEPS, Z_MIN_POSITION_STEPS
@@ -50,12 +55,13 @@ bool positioning_dir_for_coordinate(position_axis_t axis, bool positive)
 bool positioning_switch_active(position_axis_t axis)
 {
     if (axis == POSITION_AXIS_X) return switch_pressed(LIMIT_PIN_X);
-    if (axis == POSITION_AXIS_Y) return switch_pressed(LIMIT_PIN_Y);
+    if (axis == POSITION_AXIS_Y) return limit_y_valid && limit_y_active;
     return false;
 }
 
 bool positioning_limit_blocked(position_axis_t axis, bool dir_bit)
 {
+    if (axis == POSITION_AXIS_Y && !limit_y_valid) return true;
     return (axis == POSITION_AXIS_X || axis == POSITION_AXIS_Y) &&
            dir_bit == positioning_toward_zero_dir(axis) &&
            positioning_switch_active(axis);
@@ -80,7 +86,9 @@ void positioning_cancel_homing(position_axis_t axis)
 
 uint32_t positioning_steps_available(position_axis_t axis, bool dir_bit)
 {
-    if (axis > POSITION_AXIS_Z || positioning_limit_blocked(axis, dir_bit)) {
+    if (axis > POSITION_AXIS_Z ||
+        (axis == POSITION_AXIS_Y && !limit_y_valid) ||
+        positioning_limit_blocked(axis, dir_bit)) {
         return 0;
     }
     const bool increasing = positioning_dir_increases_coord(axis, dir_bit);
@@ -98,6 +106,22 @@ uint32_t positioning_steps_available(position_axis_t axis, bool dir_bit)
     if (!position_exact[axis]) {
         room -= POSITION_UNCERTAINTY_STEPS;
     }
+    return room > 0 ? (uint32_t)room : 0u;
+}
+
+uint32_t positioning_manual_jog_steps_available(position_axis_t axis, bool dir_bit)
+{
+    if (axis == POSITION_AXIS_Y && !limit_y_valid) return 0u;
+    if (axis > POSITION_AXIS_Y || position_homed[axis]) {
+        return positioning_steps_available(axis, dir_bit);
+    }
+    if (position_homing[axis] || positioning_limit_blocked(axis, dir_bit)) {
+        return 0u;
+    }
+    const int64_t pos = position_steps[axis];
+    const int64_t room = positioning_dir_increases_coord(axis, dir_bit) ?
+        (int64_t)UNHOMED_JOG_RANGE_STEPS - pos :
+        (int64_t)UNHOMED_JOG_RANGE_STEPS + pos;
     return room > 0 ? (uint32_t)room : 0u;
 }
 
@@ -158,25 +182,45 @@ static void limit_callback(uint gpio, uint32_t events)
         if (motor_stop_if_direction(POSITION_AXIS_X, X_DIR_TOWARD_ZERO)) {
             positioning_set_zero(POSITION_AXIS_X);
         }
-    } else if (gpio == LIMIT_PIN_Y && switch_pressed(LIMIT_PIN_Y)) {
-        if (motor_stop_if_direction(POSITION_AXIS_Y, Y_DIR_TOWARD_ZERO)) {
-            positioning_set_zero(POSITION_AXIS_Y);
-        }
+    }
+}
+
+bool positioning_limit_y_ready(void)
+{
+    return limit_y_valid;
+}
+
+void positioning_service(void)
+{
+    const uint64_t now = time_us_64();
+    const uint32_t interval_us = motor_any_active() ? 1000u : 20000u;
+    if (limit_y_valid && !bridge_irq_asserted() &&
+        now - last_limit_y_poll_us < interval_us) return;
+    last_limit_y_poll_us = now;
+    uint8_t state;
+    if (!bridge_gpio_read(&state)) {
+        limit_y_valid = false;
+        stop_y(NULL);
+        return;
+    }
+    limit_y_active = LIMIT_SWITCH_ACTIVE_LOW ?
+        (state & BRIDGE_GPIO_LIMIT_Y) == 0u :
+        (state & BRIDGE_GPIO_LIMIT_Y) != 0u;
+    limit_y_valid = true;
+    if (limit_y_active &&
+        motor_stop_if_direction(POSITION_AXIS_Y, Y_DIR_TOWARD_ZERO)) {
+        positioning_set_zero(POSITION_AXIS_Y);
     }
 }
 
 void positioning_init(void)
 {
+    limit_y_valid = false;
     gpio_init(LIMIT_PIN_X);
-    gpio_init(LIMIT_PIN_Y);
     gpio_set_dir(LIMIT_PIN_X, GPIO_IN);
-    gpio_set_dir(LIMIT_PIN_Y, GPIO_IN);
     gpio_pull_up(LIMIT_PIN_X);
-    gpio_pull_up(LIMIT_PIN_Y);
     gpio_set_irq_enabled_with_callback(
         LIMIT_PIN_X, GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE,
         true, limit_callback);
-    gpio_set_irq_enabled(
-        LIMIT_PIN_Y, GPIO_IRQ_EDGE_FALL | GPIO_IRQ_EDGE_RISE, true);
-
+    positioning_service();
 }

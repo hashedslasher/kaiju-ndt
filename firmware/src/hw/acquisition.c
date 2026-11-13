@@ -72,7 +72,7 @@ void u4rk_acquisition_init(void) {
     initialize_safe_output(U4RK_PULSER_OE_PIN);
 
     adc_pio = pio0;
-    pulser_pio = pio1;
+    pulser_pio = adc_pio;
     adc_sm = pio_claim_unused_sm(adc_pio, true);
     pulser_drive_sm = pio_claim_unused_sm(pulser_pio, true);
     pulser_gate_sm = pio_claim_unused_sm(pulser_pio, true);
@@ -199,9 +199,11 @@ bool u4rk_capture_start(uint16_t *destination, uint32_t sample_count) {
     if (pulser_armed) {
         uint32_t pulser_mask =
             (1u << pulser_drive_sm) | (1u << pulser_gate_sm);
-        pio_enable_sm_mask_in_sync(pulser_pio, pulser_mask);
+        pio_enable_sm_mask_in_sync(adc_pio,
+            pulser_mask | (1u << adc_sm));
+    } else {
+        pio_sm_set_enabled(adc_pio, adc_sm, true);
     }
-    pio_sm_set_enabled(adc_pio, adc_sm, true);
     capture_started_us = time_us_64();
     capture_active = true;
     return true;

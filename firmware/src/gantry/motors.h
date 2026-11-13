@@ -12,13 +12,9 @@ extern "C" {
 #include "positioning.h"
 
 #define STEP_PIN_X    18
-#define DIR_PIN_X     19
-#define STEP_PIN_Y    20
-#define DIR_PIN_Y     21
-#define STEP_PIN_Z    22
-#define DIR_PIN_Z     26
-#define LIMIT_PIN_X   27
-#define LIMIT_PIN_Y   28
+#define STEP_PIN_Y    22
+#define STEP_PIN_Z    19
+#define LIMIT_PIN_X   26
 
 #define MAX_STEPS       5000
 #define START_FREQ_HZ   100
@@ -58,7 +54,7 @@ bool motor_stop_if_direction(position_axis_t axis, bool positive);
 bool motor_any_active(void);
 int32_t motor_inflight_step_delta(position_axis_t axis, bool *exact);
 
-void init_motor_sm(PIO pio, uint sm, uint offset, uint step_pin, uint dir_pin);
+void init_motor_sm(PIO pio, uint sm, uint offset, uint step_pin);
 void start_dma(PIO pio, uint sm, int dma_chan, uint32_t* profile, uint32_t steps);
 void ramp_profile(uint32_t* profile_array, bool dir_bit, uint32_t target_freq_hz, uint32_t steps);
 

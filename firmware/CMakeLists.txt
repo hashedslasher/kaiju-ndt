@@ -75,6 +75,7 @@ target_compile_options(cmsisdsp_p0rk PRIVATE
 
 add_library(p0rk_dsp STATIC
     src/dsp/dsp.c
+    src/dsp/dsp2.c
     src/dsp/pipeline.c
     src/dsp/protocol.c
     src/hw/acquisition.c
@@ -105,6 +106,8 @@ target_link_libraries(p0rk_dsp PUBLIC
 add_library(p0rk_gantry STATIC
     src/gantry/motors.c
     src/gantry/positioning.c
+    src/gantry/bridge.c
+    src/gantry/temperature.c
 )
 pico_generate_pio_header(p0rk_gantry ${CMAKE_CURRENT_LIST_DIR}/src/gantry/motors.pio)
 target_include_directories(p0rk_gantry PUBLIC
@@ -116,6 +119,7 @@ target_link_libraries(p0rk_gantry PUBLIC
     hardware_dma
     hardware_clocks
     hardware_gpio
+    hardware_i2c
 )
 
 # Raw TinyUSB (not SDK stdio_usb) carries text commands and binary frames.

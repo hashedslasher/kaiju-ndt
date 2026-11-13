@@ -1,0 +1,2 @@
+results/lab_suite/analysis/bandwidth_individual/bandwidth_individual_summary.csv
+{'shots': 500, 'peak_mhz': 9.1626, 'lower_6db_mhz': 9.07471, 'upper_6db_mhz': 9.27979, 'bandwidth_percent': 2.235, 'median_individual_peak_mhz': 8.15918, 'note': 'Median of per-shot magnitude spectra; not calibrated probe bandwidth'}

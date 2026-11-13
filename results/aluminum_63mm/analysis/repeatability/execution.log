@@ -1,0 +1,3 @@
+{'shots': 500, 'amplitude_cv_percent': np.float64(4.7084), 'amplitude_mean': np.float64(251.095), 'tof_mean_us': np.float64(81.2275), 'tof_sd_us': np.float64(0.33222)}
+results/aluminum_63mm/analysis/repeatability/repeatability_summary_20261108_163027.csv
+results/aluminum_63mm/analysis/repeatability/repeatability_20261108_163027.png

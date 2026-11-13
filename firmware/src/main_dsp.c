@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -14,6 +15,8 @@
 #include "dsp.h"
 #include "pipeline.h"
 #include "motors.h"
+#include "bridge.h"
+#include "temperature.h"
 #include "u4rk.h"
 #include "usb_transport.h"
 #include "scan/scan.h"
@@ -127,6 +130,16 @@ static bool parse_u32(const char *text, uint32_t *value) {
     if (*end != '\0' || parsed > UINT32_MAX) {
         return false;
     }
+    *value = (uint32_t)parsed;
+    return true;
+}
+
+static bool parse_register_value(const char *text, uint32_t *value) {
+    if (!text || !*text || *text == '-') return false;
+    char *end;
+    errno = 0;
+    unsigned long parsed = strtoul(text, &end, 0);
+    if (errno == ERANGE || *end != '\0' || parsed > UINT32_MAX) return false;
     *value = (uint32_t)parsed;
     return true;
 }
@@ -422,19 +435,13 @@ static void reboot_dfu(void) {
 static void send_help(void) {
     send_ok(
         "commands=status|help|version|reboot-dfu|"
-        "pulser arm|pulser disarm|"
-        "pulse config <negative_ns> <damp_ns> <positive_ns> "
-        "<neg-first|pos-first>|dac write <0..1023>|"
-        "dsp scale <reference>|dsp selftest|"
-        "acq <raw|envelope|alaw>|read_raw|read_fft|"
-        "stream start <raw|envelope|alaw> <rate_hz>|stream stop|"
-        "start acq|read|"
-        "jog_x/jog_y <plus|minus> <hz>|jog_z <up|down> <hz>|"
-        "move_x/move_y <plus|minus> <hz> <steps>|"
-        "move_z <up|down> <hz> <steps>|stop_x|stop_y|stop_z|stop_all|"
-        "pos|home|pos_zero <x|y|z|all>|"
-        "scan <nx> <ny> <dx_steps> <dy_steps> <hz> "
-        "<gate_start> <gate_end> <settle_ms>|scan stop");
+        "pulser arm/disarm|pulse config|dac write|dsp scale/selftest|"
+        "acq <raw|envelope|alaw>|read_raw|read_fft|stream start/stop|"
+        "jog_x/jog_y/jog_z <direction> <hz>|"
+        "move_x/move_y/move_z <direction> <hz> <steps>|"
+        "stop_x|stop_y|stop_z|stop_all|pos|home|pos_zero <axis>|"
+        "tmc status|tmc read <motor> <reg>|tmc write <motor> <reg> <value>|"
+        "tmc setup|temp|scan <nx> <ny> <dx> <dy> <hz> <gate0> <gate1> <settle_ms> [... ]|scan stop");
 }
 
 static void send_status(void) {
@@ -514,9 +521,9 @@ static void process_command(char *line) {
             return;
         }
         scan_config_t cfg;
-        uint32_t values[8];
+        uint32_t values[11] = {0};
         if (!arg) {
-            send_error("ARG", "scan nx ny dx_steps dy_steps hz gate_start gate_end settle_ms");
+            send_error("ARG", "scan nx ny dx dy hz amp_start amp_end settle_ms [flaw_start flaw_end averages] [waveforms]");
             return;
         }
         bool valid = parse_u32(arg, &values[0]);
@@ -524,9 +531,24 @@ static void process_command(char *line) {
             arg = strtok_r(NULL, " \t", &save);
             valid = parse_u32(arg, &values[i]) && valid;
         }
+        values[10] = 1u;
+        char *extra = strtok_r(NULL, " \t", &save);
+        bool send_waveforms = false;
+        if (extra && strcmp(extra, "waveforms") != 0) {
+            valid = parse_u32(extra, &values[8]) && valid;
+            for (unsigned i = 9; i < 11; ++i) {
+                arg = strtok_r(NULL, " \t", &save);
+                valid = parse_u32(arg, &values[i]) && valid;
+            }
+            extra = strtok_r(NULL, " \t", &save);
+        }
+        if (extra) {
+            send_waveforms = strcmp(extra, "waveforms") == 0;
+            valid = valid && send_waveforms;
+        }
         if (strtok_r(NULL, " \t", &save) != NULL) valid = false;
         if (!valid) {
-            send_error("ARG", "scan requires eight nonnegative integers");
+            send_error("ARG", "scan arguments invalid");
             return;
         }
         cfg = (scan_config_t){
@@ -534,12 +556,19 @@ static void process_command(char *line) {
             .dx_steps = values[2], .dy_steps = values[3],
             .speed_hz = values[4], .gate_start = values[5],
             .gate_end = values[6], .settle_ms = values[7],
+            .flaw_gate_start = values[8], .flaw_gate_end = values[9],
+            .averages = values[10],
+            .send_waveforms = send_waveforms,
         };
         if (operation_busy() || stream.active) {
             send_error("BUSY", "acquisition or transfer in progress");
             return;
         }
         const char *error = NULL;
+        if (!bridge_ready() || !tmc_all_online()) {
+            send_error("BRIDGE", "scan requires all five motor drivers; tmc status / tmc setup");
+            return;
+        }
         if (!scan_start(&cfg, &error)) {
             send_error("SCAN", "%s", error ? error : "cannot start");
             return;
@@ -563,7 +592,28 @@ static void process_command(char *line) {
     }
 
 
-    if (strcmp(first, "pos") == 0) {
+    if (strcmp(first, "temp") == 0) {
+        if (strtok_r(NULL, " \t", &save) != NULL) {
+            send_error("ARG", "temp takes no arguments");
+            return;
+        }
+        if (motor_any_active() || motor_is_homing_xy()) {
+            send_ok("temp=pending");
+            return;
+        }
+        float degrees_c = 0.0f;
+        temperature_result_t result = temperature_poll(&degrees_c);
+        if (result == TEMPERATURE_READY) {
+            send_ok("temp_c=%.2f", (double)degrees_c);
+        } else if (result == TEMPERATURE_PENDING) {
+            send_ok("temp=pending");
+        } else {
+            send_error("TEMP", "%s", temperature_error());
+        }
+        return;
+    }
+
+
         send_ok("x=%ld y=%ld z=%ld homed=%u/%u/%u exact=%u/%u/%u "
                 "limit_x0=%u limit_y0=%u xmax=%u ymax=%u home=%s",
                 (long)positioning_get_steps(POSITION_AXIS_X),
@@ -656,6 +706,75 @@ static void process_command(char *line) {
         return;
     }
 
+    if (strcmp(first, "tmc") == 0) {
+        char *action = strtok_r(NULL, " \t", &save);
+        if (!action) {
+            send_error("ARG", "tmc status|read <x1|x2|y1|y2|z> <reg>|write <motor> <reg> <value>|setup");
+            return;
+        }
+        if (motor_any_active() || motor_is_homing_xy()) {
+            send_error("BUSY", "stop all motors before accessing TMC registers");
+            return;
+        }
+        if (strcmp(action, "setup") == 0) {
+            bool ok = bridge_init();
+            if (ok) {
+                for (unsigned i = 0; i < TMC_COUNT; ++i) {
+                    if (!tmc_configure_8_microsteps((tmc_motor_t)i)) ok = false;
+                }
+            }
+            if (ok) send_ok("tmc setup drivers=5 microsteps=8 baud=%u", BRIDGE_UART_BAUD);
+            else send_error("BRIDGE", "tmc setup failed: %s", bridge_error());
+            return;
+        }
+        if (strcmp(action, "status") == 0) {
+            uint8_t mask = 0;
+            for (unsigned i = 0; i < TMC_COUNT; ++i) {
+                if (tmc_motor_online((tmc_motor_t)i)) mask |= (1u << i);
+            }
+            uint8_t gpio_state = 0;
+            const bool read_ok = bridge_gpio_read(&gpio_state);
+            send_ok("bridge=%s address=0x%02X baud=%u online_mask=0x%02X "
+                    "gpio=%s0x%02X irq=%u error=%s",
+                    bridge_ready() ? "ready" : "offline", BRIDGE_I2C_ADDRESS,
+                    BRIDGE_UART_BAUD, mask, read_ok ? "" : "unavailable/",
+                    gpio_state, bridge_irq_asserted(), bridge_error());
+            return;
+        }
+        if (strcmp(action, "read") != 0 && strcmp(action, "write") != 0) {
+            send_error("ARG", "tmc action must be status, read, write, or setup");
+            return;
+        }
+        const bool writing = strcmp(action, "write") == 0;
+        char *motor_arg = strtok_r(NULL, " \t", &save);
+        char *reg_arg = strtok_r(NULL, " \t", &save);
+        char *val_arg = writing ? strtok_r(NULL, " \t", &save) : NULL;
+        tmc_motor_t motor;
+        uint32_t reg, value = 0;
+        if (!tmc_motor_from_name(motor_arg, &motor) ||
+            !parse_register_value(reg_arg, &reg) || reg > 0x7Fu ||
+            (writing && !parse_register_value(val_arg, &value)) ||
+            strtok_r(NULL, " \t", &save)) {
+            send_error("ARG", "tmc read <x1|x2|y1|y2|z> <0x00..0x7f> or tmc write <motor> <reg> <value>");
+            return;
+        }
+        if (!bridge_ready()) {
+            send_error("BRIDGE", "%s", bridge_error());
+            return;
+        }
+        bool ok = writing ? tmc_write(motor, (uint8_t)reg, value) :
+                            tmc_read(motor, (uint8_t)reg, &value);
+        if (ok) {
+            send_ok("tmc %s motor=%s reg=0x%02X value=0x%08lX",
+                    action, tmc_motor_name(motor), (unsigned)reg,
+                    (unsigned long)value);
+        } else {
+            send_error("BRIDGE", "tmc %s %s failed: %s", action,
+                       tmc_motor_name(motor), bridge_error());
+        }
+        return;
+    }
+
     if (motor_is_homing_xy() &&
         (!strncmp(first, "jog_", 4) || !strncmp(first, "move_", 5))) {
         send_error("BUSY", "X/Y homing in progress");
@@ -681,9 +800,22 @@ static void process_command(char *line) {
     if (motor_command) {
         if (motor_success) {
             send_ok("%s", first);
+        } else if (!bridge_ready() || !tmc_all_online()) {
+            send_error("BRIDGE", "motor driver bridge not ready; tmc status / tmc setup (%s)", bridge_error());
+        } else if ((strcmp(first, "move_x") == 0 &&
+                    !positioning_is_homed(POSITION_AXIS_X)) ||
+                   (strcmp(first, "move_y") == 0 &&
+                    !positioning_is_homed(POSITION_AXIS_Y))) {
+            send_error("HOME", "home X/Y before finite moves");
+        } else if ((strcmp(first, "jog_x") == 0 &&
+                    !positioning_is_homed(POSITION_AXIS_X)) ||
+                   (strcmp(first, "jog_y") == 0 &&
+                    !positioning_is_homed(POSITION_AXIS_Y))) {
+            send_error("LIMIT", "unhomed X/Y jog limited to %u steps from startup; run home",
+                       UNHOMED_JOG_RANGE_STEPS);
         } else {
-            send_error("ARG", "invalid motor direction, frequency, or steps "
-                             "(max frequency=%u Hz; max steps=%u)",
+            send_error("ARG", "invalid motor direction, frequency, or steps, or travel limit "
+                             "(max frequency=%u Hz; max finite steps=%u)",
                        MAX_MOTOR_FREQ_HZ, MAX_STEPS);
         }
         return;

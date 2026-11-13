@@ -12,7 +12,11 @@ typedef struct {
     uint32_t speed_hz;
     uint32_t gate_start;
     uint32_t gate_end;
+    uint32_t flaw_gate_start;
+    uint32_t flaw_gate_end;
+    uint32_t averages;
     uint32_t settle_ms;
+    bool send_waveforms;
 } scan_config_t;
 
 bool scan_start(const scan_config_t *config, const char **error);

@@ -9,6 +9,7 @@
 #include <inttypes.h>
 #include "motors.pio.h"
 #include "motors.h"
+#include "bridge.h"
 
 uint32_t step_profile_x[MAX_STEPS];
 uint32_t step_profile_y[MAX_STEPS];
@@ -27,9 +28,9 @@ typedef struct {
     int dma_chan;
     uint32_t *profile;
     uint step_pin;
-    uint dir_pin;
     bool active;
     bool continuous;
+    bool manual_jog;
     bool needs_ramp;
     uint32_t planned_steps;
     position_axis_t id;
@@ -47,12 +48,24 @@ typedef enum {
 static home_state_t home_state = HOME_IDLE;
 static uint32_t home_stage_start_ms;
 
-static inline uint32_t pack_step_word(bool dir_bit, uint32_t delay)
+static inline bool motor_dir_pin_level(position_axis_t axis, bool dir_bit)
+{
+    return axis == POSITION_AXIS_Z ? !dir_bit : dir_bit;
+}
+
+static bool prepare_motor_axis(position_axis_t axis, bool dir_bit)
+{
+    if (!bridge_ready() || !tmc_all_online()) return false;
+    return bridge_set_direction((unsigned)axis, motor_dir_pin_level(axis, dir_bit)) &&
+           bridge_set_enable(true);
+}
+
+static inline uint32_t pack_step_word(bool dir_pin_level, uint32_t delay)
 {
     if (delay > 0x7FFFFFFFu) {
         delay = 0x7FFFFFFFu;
     }
-    return (delay << 1) | (dir_bit ? 1u : 0u);
+    return (delay << 1) | (dir_pin_level ? 1u : 0u);
 }
 
 static inline uint32_t freq_to_delay(uint32_t freq_hz)
@@ -71,17 +84,13 @@ static inline uint32_t freq_to_delay(uint32_t freq_hz)
     return delay;
 }
 
-void init_motor_sm(PIO pio, uint sm, uint offset, uint step_pin, uint dir_pin)
+void init_motor_sm(PIO pio, uint sm, uint offset, uint step_pin)
 {
     pio_gpio_init(pio, step_pin);
-    pio_gpio_init(pio, dir_pin);
-
     pio_sm_set_consecutive_pindirs(pio, sm, step_pin, 1, true);
-    pio_sm_set_consecutive_pindirs(pio, sm, dir_pin, 1, true);
 
     pio_sm_config c = stepper_ctrl_program_get_default_config(offset);
     sm_config_set_set_pins(&c, step_pin, 1);
-    sm_config_set_out_pins(&c, dir_pin, 1);
     sm_config_set_out_shift(&c, true, false, 32);
 
     pio_sm_init(pio, sm, offset, &c);
@@ -134,6 +143,7 @@ static void stop_axis_now(motor_axis_t *axis)
 
     axis->active = false;
     axis->continuous = false;
+    axis->manual_jog = false;
     axis->needs_ramp = false;
     axis->planned_steps = 0u;
     pio_sm_clear_fifos(axis->pio, axis->sm);
@@ -198,38 +208,50 @@ static void build_ramp_profile(uint32_t *profile,
     }
 }
 
+static uint32_t axis_steps_available(const motor_axis_t *axis, bool dir_bit)
+{
+    return axis->manual_jog ?
+        positioning_manual_jog_steps_available(axis->id, dir_bit) :
+        positioning_steps_available(axis->id, dir_bit);
+}
+
 static bool start_axis_block(motor_axis_t *axis)
 {
-    uint32_t room = positioning_steps_available(axis->id, axis->dir_bit);
+    uint32_t room = axis_steps_available(axis, axis->dir_bit);
     if (!axis->active || room == 0u) {
         stop_axis_now(axis);
         return false;
     }
     const uint32_t steps = room < MAX_STEPS ? room : MAX_STEPS;
+    if (!prepare_motor_axis(axis->id, axis->dir_bit)) {
+        stop_axis_now(axis);
+        return false;
+    }
     if (axis->needs_ramp) {
-        build_ramp_profile(axis->profile, axis->dir_bit, axis->target_freq_hz);
+        build_ramp_profile(axis->profile,
+                           motor_dir_pin_level(axis->id, axis->dir_bit),
+                           axis->target_freq_hz);
         axis->needs_ramp = false;
     } else {
-        build_cruise_profile(axis->profile, axis->dir_bit, axis->target_freq_hz);
+        build_cruise_profile(axis->profile,
+                             motor_dir_pin_level(axis->id, axis->dir_bit),
+                             axis->target_freq_hz);
     }
 
     const uint32_t saved = save_and_disable_interrupts();
-    room = positioning_steps_available(axis->id, axis->dir_bit);
+    room = axis_steps_available(axis, axis->dir_bit);
     if (!axis->active || room < steps) {
         restore_interrupts(saved);
         stop_axis_now(axis);
         return false;
     }
     axis->planned_steps = steps;
-#ifdef EN_PIN
-    gpio_put(EN_PIN, 0);
-#endif
     start_dma(axis->pio, axis->sm, axis->dma_chan, axis->profile, steps);
     restore_interrupts(saved);
     return true;
 }
 
-static bool jog_axis(motor_axis_t *axis, bool dir_bit, uint32_t freq_hz)
+static bool jog_axis(motor_axis_t *axis, bool dir_bit, uint32_t freq_hz, bool manual)
 {
     if (freq_hz == 0 || freq_hz > MAX_MOTOR_FREQ_HZ) {
         return false;
@@ -239,13 +261,15 @@ static bool jog_axis(motor_axis_t *axis, bool dir_bit, uint32_t freq_hz)
         return true;
     }
     stop_axis_now(axis);
-    if (positioning_steps_available(axis->id, dir_bit) == 0u) {
+    if ((manual ? positioning_manual_jog_steps_available(axis->id, dir_bit) :
+                  positioning_steps_available(axis->id, dir_bit)) == 0u) {
         return false;
     }
     axis->dir_bit = dir_bit;
     axis->target_freq_hz = freq_hz;
     axis->active = true;
     axis->continuous = true;
+    axis->manual_jog = manual;
     axis->needs_ramp = true;
     return start_axis_block(axis);
 }
@@ -283,7 +307,8 @@ static void home_fail(void)
 
 bool motor_home_xy(void)
 {
-    if (axis_x.active || axis_y.active || axis_z.active) return false;
+    if (axis_x.active || axis_y.active || axis_z.active ||
+        !positioning_limit_y_ready()) return false;
     positioning_cancel_homing(POSITION_AXIS_X);
     positioning_cancel_homing(POSITION_AXIS_Y);
     const bool x_at_zero = positioning_switch_active(POSITION_AXIS_X);
@@ -300,8 +325,8 @@ bool motor_home_xy(void)
     }
     home_state = HOME_RUNNING;
     home_stage_start_ms = to_ms_since_boot(get_absolute_time());
-    if ((!x_at_zero && !jog_axis(&axis_x, X_DIR_TOWARD_ZERO, HOME_SPEED_HZ)) ||
-        (!y_at_zero && !jog_axis(&axis_y, Y_DIR_TOWARD_ZERO, HOME_SPEED_HZ))) {
+    if ((!x_at_zero && !jog_axis(&axis_x, X_DIR_TOWARD_ZERO, HOME_SPEED_HZ, false)) ||
+        (!y_at_zero && !jog_axis(&axis_y, Y_DIR_TOWARD_ZERO, HOME_SPEED_HZ, false))) {
         home_fail();
     } else if (x_at_zero && y_at_zero) {
         home_state = HOME_COMPLETE;
@@ -326,6 +351,7 @@ const char *motor_home_status(void)
 
 void motor_service(void)
 {
+    positioning_service();
     service_axis(&axis_x);
     service_axis(&axis_y);
     service_axis(&axis_z);
@@ -402,9 +428,7 @@ void motor_stop_all(void)
     stop_axis_now(&axis_x);
     stop_axis_now(&axis_y);
     stop_axis_now(&axis_z);
-#ifdef EN_PIN
-    gpio_put(EN_PIN, 1);
-#endif
+    (void)bridge_set_enable(false);
 }
 
 static bool parse_motion(const char *args, bool finite,
@@ -454,7 +478,7 @@ static bool jog_command(motor_axis_t *axis, const char *args, bool z_axis)
         return false;
     }
     return jog_axis(axis,
-        positioning_dir_for_coordinate(axis->id, direction), frequency);
+        positioning_dir_for_coordinate(axis->id, direction), frequency, true);
 }
 
 bool jog_x(const char *args) { return jog_command(&axis_x, args, false); }
@@ -473,7 +497,9 @@ static bool finite_move(motor_axis_t *axis, const char *args, bool z_axis)
     if (steps > positioning_steps_available(axis->id, motor_dir)) {
         return false;
     }
-    ramp_profile(axis->profile, motor_dir, frequency, steps);
+    ramp_profile(axis->profile, motor_dir_pin_level(axis->id, motor_dir),
+                 frequency, steps);
+    if (!prepare_motor_axis(axis->id, motor_dir)) return false;
     const uint32_t saved = save_and_disable_interrupts();
     if (steps > positioning_steps_available(axis->id, motor_dir)) {
         restore_interrupts(saved);
@@ -484,9 +510,6 @@ static bool finite_move(motor_axis_t *axis, const char *args, bool z_axis)
     axis->dir_bit = motor_dir;
     axis->planned_steps = steps;
     axis->needs_ramp = false;
-#ifdef EN_PIN
-    gpio_put(EN_PIN, 0);
-#endif
     start_dma(axis->pio, axis->sm, axis->dma_chan, axis->profile, steps);
     restore_interrupts(saved);
     return true;
@@ -498,33 +521,33 @@ bool move_z(const char *args) { return finite_move(&axis_z, args, true); }
 
 void motor_setup(void)
 {
-#ifdef EN_PIN
-    gpio_init(EN_PIN);
-    gpio_put(EN_PIN, 1);
-    gpio_set_dir(EN_PIN, GPIO_OUT);
-#endif
+    if (bridge_init()) {
+        for (unsigned i = 0; i < TMC_COUNT; ++i) {
+            (void)tmc_configure_8_microsteps((tmc_motor_t)i);
+        }
+    }
 
     motor_pio_offset = pio_add_program(motor_pio, &stepper_ctrl_program);
 
     const uint sm_x = pio_claim_unused_sm(motor_pio, true);
     const uint sm_y = pio_claim_unused_sm(motor_pio, true);
     const uint sm_z = pio_claim_unused_sm(motor_pio, true);
-    init_motor_sm(motor_pio, sm_x, motor_pio_offset, STEP_PIN_X, DIR_PIN_X);
-    init_motor_sm(motor_pio, sm_y, motor_pio_offset, STEP_PIN_Y, DIR_PIN_Y);
-    init_motor_sm(motor_pio, sm_z, motor_pio_offset, STEP_PIN_Z, DIR_PIN_Z);
+    init_motor_sm(motor_pio, sm_x, motor_pio_offset, STEP_PIN_X);
+    init_motor_sm(motor_pio, sm_y, motor_pio_offset, STEP_PIN_Y);
+    init_motor_sm(motor_pio, sm_z, motor_pio_offset, STEP_PIN_Z);
 
     dma_chan_x = dma_claim_unused_channel(true);
     dma_chan_y = dma_claim_unused_channel(true);
     dma_chan_z = dma_claim_unused_channel(true);
 
     axis_x = (motor_axis_t){.pio=motor_pio, .sm=sm_x, .dma_chan=dma_chan_x,
-        .profile=step_profile_x, .step_pin=STEP_PIN_X, .dir_pin=DIR_PIN_X,
+        .profile=step_profile_x, .step_pin=STEP_PIN_X,
         .id=POSITION_AXIS_X};
     axis_y = (motor_axis_t){.pio=motor_pio, .sm=sm_y, .dma_chan=dma_chan_y,
-        .profile=step_profile_y, .step_pin=STEP_PIN_Y, .dir_pin=DIR_PIN_Y,
+        .profile=step_profile_y, .step_pin=STEP_PIN_Y,
         .id=POSITION_AXIS_Y};
     axis_z = (motor_axis_t){.pio=motor_pio, .sm=sm_z, .dma_chan=dma_chan_z,
-        .profile=step_profile_z, .step_pin=STEP_PIN_Z, .dir_pin=DIR_PIN_Z,
+        .profile=step_profile_z, .step_pin=STEP_PIN_Z,
         .id=POSITION_AXIS_Z};
     positioning_init();
 }

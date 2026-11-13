@@ -39,6 +39,15 @@ def find_pic0rick_port():
     )
 
 
+class _ExactSerialView:
+    def __init__(self, serial_port):
+        self.serial_port = serial_port
+        self.in_waiting = 0
+
+    def read(self, count):
+        return self.serial_port.read(count)
+
+
 class Pic0rick:
     def __init__(self, port=None, verbose=False, logging=False, log_file=None, timeout=3.0):
         name = port or os.environ.get('PIC0RICK_PORT') or find_pic0rick_port()
@@ -87,6 +96,17 @@ class Pic0rick:
         if not reply.startswith('OK '):
             raise RuntimeError(f'Firmware rejected {text!r}: {reply}')
         return reply
+
+    def temperature(self):
+        reply = self.command('temp')
+        if reply == 'OK temp=pending':
+            return None
+        if not reply.startswith('OK temp_c='):
+            raise ValueError(f'Unexpected temperature reply: {reply}')
+        value = float(reply.partition('=')[2])
+        if not -55.0 <= value <= 125.0:
+            raise ValueError(f'Invalid temperature reading: {value}')
+        return value
 
     def status(self):
         return protocol.parse_status(self.command('status'))
@@ -196,16 +216,25 @@ class Pic0rick:
             raise ValueError('Frequency must be 1..50000 Hz')
 
     def scan(self, nx, ny, dx_steps, dy_steps, speed_hz,
-             gate_start, gate_end, settle_ms=10):
+             gate_start, gate_end, settle_ms=10, waveforms=False,
+             flaw_gate_start=0, flaw_gate_end=0, averages=1):
         values = (nx, ny, dx_steps, dy_steps, speed_hz,
-                  gate_start, gate_end, settle_ms)
+                  gate_start, gate_end, settle_ms,
+                  flaw_gate_start, flaw_gate_end, averages)
         if any(type(value) is not int or value < 0 for value in values):
             raise ValueError('Scan arguments must be nonnegative integers')
         if nx < 1 or ny < 1 or nx * ny > 100000:
             raise ValueError('Invalid scan dimensions')
         if not 0 <= gate_start < gate_end <= 8000:
             raise ValueError('Gate must be inside the 8000-sample raw capture')
+        if (flaw_gate_start or flaw_gate_end) and not 0 <= flaw_gate_start < flaw_gate_end <= 8000:
+            raise ValueError('Flaw gate must be inside the 8000-sample raw capture')
+        if not 1 <= averages <= 256:
+            raise ValueError('Averages must be between 1 and 256')
         command = 'scan ' + ' '.join(map(str, values))
+        if waveforms:
+            command += ' waveforms'
+        scan_frames = protocol.FrameReader(_ExactSerialView(self.ser), read_size=16384) if waveforms else None
         old_timeout = self.ser.timeout
         self.ser.timeout = max(30.0, (max(dx_steps, dy_steps) / 100.0) + 20.0)
         complete = False
@@ -217,13 +246,23 @@ class Pic0rick:
                 if not line:
                     raise TimeoutError('Timed out waiting for scan point')
                 parts = line.split()
-                if parts[0] == 'SCAN_POINT' and len(parts) == 6:
-                    row, col, x, y, amplitude = map(int, parts[1:])
-                    received += 1
-                    yield {
+                if parts[0] == 'SCAN_POINT' and len(parts) == 7:
+                    row, col, x, y, amplitude, flaw = map(int, parts[1:])
+                    point = {
                         'row': row, 'col': col, 'x_steps': x,
                         'y_steps': y, 'amplitude_pp': amplitude,
+                        'flaw_pp': flaw, 'averages': averages,
                     }
+                    if waveforms:
+                        frame = scan_frames.read_frame()
+                        if (frame.header.payload_name != 'raw' or
+                                frame.header.sample_count != 8000 or
+                                frame.header.sequence != received):
+                            raise ValueError('Scan waveform does not match scan point')
+                        point['waveform'] = frame.samples()
+                        point['sample_rate_hz'] = frame.header.sample_rate_hz
+                    received += 1
+                    yield point
                 elif parts[0] == 'SCAN_DONE' and len(parts) == 2:
                     if received != nx * ny or int(parts[1]) != received:
                         raise RuntimeError(f'Incomplete scan: {received}/{nx * ny}')

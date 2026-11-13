@@ -1,0 +1,2 @@
+shots,expected_spacing_us,measured_spacing_us_mean,measured_thickness_mm_mean,thickness_sd_mm,thickness_error_percent,note
+500,1.93354,1.9743,6.23879,0.03638,2.108,Tentative echo identification; verify front-wall and back-wall labels

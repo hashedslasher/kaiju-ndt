@@ -9,10 +9,10 @@
 #define Y_MIN_POSITION_STEPS   0
 #define Y_MAX_POSITION_STEPS   11000
 #define Z_MIN_POSITION_STEPS   0
-#define Z_MAX_POSITION_STEPS   5000
+#define Z_MAX_POSITION_STEPS   39000
 
 #define X_DIR_TOWARD_ZERO  false
-#define Y_DIR_TOWARD_ZERO  true
+#define Y_DIR_TOWARD_ZERO  false
 #define LIMIT_SWITCH_ACTIVE_LOW 1
 
 #define HOME_SPEED_HZ 2000u
@@ -20,6 +20,7 @@
 #define HOME_AXIS_TIMEOUT_MS 90000u
 
 #define POSITION_UNCERTAINTY_STEPS 8
+#define UNHOMED_JOG_RANGE_STEPS 1000u
 
 typedef enum {
     POSITION_AXIS_X = 0,
@@ -28,6 +29,8 @@ typedef enum {
 } position_axis_t;
 
 void positioning_init(void);
+void positioning_service(void);
+bool positioning_limit_y_ready(void);
 bool positioning_toward_zero_dir(position_axis_t axis);
 bool positioning_dir_increases_coord(position_axis_t axis, bool dir_bit);
 bool positioning_dir_for_coordinate(position_axis_t axis, bool positive);
@@ -36,6 +39,7 @@ void positioning_begin_homing(position_axis_t axis);
 void positioning_cancel_homing(position_axis_t axis);
 bool positioning_limit_blocked(position_axis_t axis, bool dir_bit);
 uint32_t positioning_steps_available(position_axis_t axis, bool dir_bit);
+uint32_t positioning_manual_jog_steps_available(position_axis_t axis, bool dir_bit);
 void positioning_add_steps(position_axis_t axis, bool dir_bit,
                            uint32_t steps, bool exact);
 int32_t positioning_get_steps(position_axis_t axis);

@@ -1,0 +1,30 @@
+{
+  "created_utc": "2026-11-08T21:36:42.157038+00:00",
+  "source_csv": "results/lab_suite/raw/stationary.csv",
+  "sample": "Aluminum plate, nominal 6.11 mm",
+  "water_path_mm": 63.0,
+  "probe": "10 MHz spherical focus 3 inch, nominal element diameter 11 mm",
+  "material_longitudinal_velocity_m_s_assumed": 6320.0,
+  "water_velocity_m_s_assumed": 1480.0,
+  "focus_mm_in_water": 76.2,
+  "expected_frontwall_us": 85.13513513513514,
+  "expected_thickness_echo_interval_us": 1.9335443037974684,
+  "pulse_negative_ns": 72,
+  "pulse_positive_ns": 72,
+  "damping_ns": 6000,
+  "gain_setting": 200,
+  "echo_gate_us": [
+    80.0,
+    95.0
+  ],
+  "noise_gate_us": [
+    112.0,
+    125.0
+  ],
+  "timing_gate_us": [
+    80.0,
+    92.0
+  ],
+  "capture_shots": 500,
+  "prf_seconds": 5.0
+}

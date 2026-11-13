@@ -1,0 +1,2 @@
+shots,sample_rate_hz,reference_shot,lag_std_samples,lag_std_ns,lag_peak_to_peak_samples,lag_peak_to_peak_ns,most_common_lags,envelope_disagreement_percent,first_baseline,last_baseline,baseline_last_quarter_mean,baseline_last_quarter_sd,mean_snr_peak_db,mean_noise_rms,echo_peak_cv_percent,clipped_shots
+500,60000000.0,499,19.9385,332.308,69,1150.0,-23:95;-22:74;0:61;-2:56;44:53;-1:53;-3:49;-21:33,4.8,596.23,507.968,508.174,0.173,47.132,0.9038,1.931,54

@@ -1,0 +1,12 @@
+test,status,source_csv,error
+integrity,ok,results/aluminum_63mm/raw/stationary.csv,
+snr,ok,results/aluminum_63mm/raw/stationary.csv,
+repeatability,ok,results/aluminum_63mm/raw/stationary.csv,
+averaging,ok,results/aluminum_63mm/raw/stationary.csv,
+alignment,ok,results/aluminum_63mm/raw/stationary.csv,
+timing_offset,ok,results/aluminum_63mm/raw/stationary.csv,
+bandwidth,ok,results/aluminum_63mm/raw/stationary.csv,
+bandwidth_individual,ok,results/aluminum_63mm/raw/stationary.csv,
+tof,ok,results/aluminum_63mm/raw/stationary.csv,
+echo_spacing,ok,results/aluminum_63mm/raw/stationary.csv,
+prf_oneshot,ok,results/aluminum_63mm/raw/prf_oneshot.csv,

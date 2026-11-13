@@ -4,6 +4,10 @@ from . import common
 
 MODULES = {
     'capture': 'capture',
+    'lab_suite': 'lab_suite',
+    'timing_offset': 'timing_offset',
+    'bandwidth_individual': 'bandwidth_individual',
+    'echo_spacing': 'echo_spacing',
     'scan': 'scan',
     'integrity': 'integrity',
     'snr': 'snr',

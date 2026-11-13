@@ -1,0 +1,2 @@
+shots,peak_mhz,lower_6db_mhz,upper_6db_mhz,bandwidth_percent,median_individual_peak_mhz,note
+500,9.1626,9.07471,9.27979,2.235,9.1626,Median of per-shot magnitude spectra; not calibrated probe bandwidth

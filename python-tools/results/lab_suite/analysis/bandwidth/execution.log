@@ -1,0 +1,3 @@
+{'peak_mhz': np.float64(8.15186), 'lower_6db_mhz': np.float64(5.52979), 'upper_6db_mhz': np.float64(9.27246), 'bandwidth_percent': np.float64(50.569)}
+results/lab_suite/analysis/bandwidth/bandwidth_summary_20261108_163650.csv
+results/lab_suite/analysis/bandwidth/bandwidth_20261108_163650.png
