@@ -103,6 +103,16 @@ target_link_libraries(p0rk_dsp PUBLIC
     cmsisdsp_p0rk
 )
 
+# Use the external SC16IS752 and Trinamic libraries for bridge and driver control.
+add_library(sc16is752 STATIC
+    src/external/SC16IS752/sc16is750.c
+)
+target_include_directories(sc16is752 PUBLIC
+    ${CMAKE_CURRENT_LIST_DIR}/src/external/SC16IS752
+)
+target_link_libraries(sc16is752 PUBLIC pico_stdlib hardware_i2c)
+add_subdirectory(src/external/pico_trinamic)
+
 add_library(p0rk_gantry STATIC
     src/gantry/motors.c
     src/gantry/positioning.c
@@ -120,6 +130,8 @@ target_link_libraries(p0rk_gantry PUBLIC
     hardware_clocks
     hardware_gpio
     hardware_i2c
+    sc16is752
+    pico_trinamic
 )
 
 # Raw TinyUSB (not SDK stdio_usb) carries text commands and binary frames.

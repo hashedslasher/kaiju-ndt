@@ -1,4 +1,5 @@
 import os
+import math
 import time
 import serial
 from serial.tools import list_ports
@@ -191,72 +192,104 @@ class Pic0rick:
             raise ValueError(axis)
         return self.command(f'pos_zero {axis}')
 
-    def jog(self, axis, direction, frequency):
-        self._validate_motion(axis, direction, frequency)
-        return self.command(f'jog_{axis} {direction} {int(frequency)}')
+    def jog(self, axis, direction, speed_mm_s):
+        self._validate_motion(axis, direction, speed_mm_s)
+        return self.command(f'jog_mm_{axis} {direction} {float(speed_mm_s):g}')
 
-    def move(self, axis, direction, frequency, steps):
-        self._validate_motion(axis, direction, frequency)
-        if not 1 <= int(steps) <= 5000:
-            raise ValueError('Firmware finite moves allow 1..5000 steps')
-        return self.command(f'move_{axis} {direction} {int(frequency)} {int(steps)}')
+    def move(self, axis, direction, speed_mm_s, distance_mm):
+        self._validate_motion(axis, direction, speed_mm_s)
+        if not math.isfinite(distance_mm) or distance_mm <= 0:
+            raise ValueError('Distance must be positive and finite (mm)')
+        return self.command(f'move_mm_{axis} {direction} {float(speed_mm_s):g} {float(distance_mm):g}')
+
+    def geometry(self):
+        return self.command('geometry')
 
     def stop(self, axis='all'):
         if axis not in ('x', 'y', 'z', 'all'):
             raise ValueError(axis)
         return self.command(f'stop_{axis}')
 
-    def _validate_motion(self, axis, direction, frequency):
+    def _validate_motion(self, axis, direction, speed_mm_s):
         if axis not in ('x', 'y', 'z'):
             raise ValueError(axis)
         valid = ('up', 'down') if axis == 'z' else ('plus', 'minus')
         if direction not in valid:
             raise ValueError(direction)
-        if not 1 <= int(frequency) <= 50000:
-            raise ValueError('Frequency must be 1..50000 Hz')
+        if not math.isfinite(speed_mm_s) or speed_mm_s <= 0:
+            raise ValueError('Speed must be positive and finite (mm/s)')
 
-    def scan(self, nx, ny, dx_steps, dy_steps, speed_hz,
+    def scan(self, nx, ny, dx_mm, dy_mm, speed_mm_s,
              gate_start, gate_end, settle_ms=10, waveforms=False,
-             flaw_gate_start=0, flaw_gate_end=0, averages=1):
-        values = (nx, ny, dx_steps, dy_steps, speed_hz,
-                  gate_start, gate_end, settle_ms,
-                  flaw_gate_start, flaw_gate_end, averages)
-        if any(type(value) is not int or value < 0 for value in values):
-            raise ValueError('Scan arguments must be nonnegative integers')
-        if nx < 1 or ny < 1 or nx * ny > 100000:
+             flaw_gate_start=0, flaw_gate_end=0, averages=1,
+             tof_gate_start=None, tof_gate_end=None, tof_threshold=20, centered=False, progress=None):
+        tof_gate_start = gate_start if tof_gate_start is None else tof_gate_start
+        tof_gate_end = gate_end if tof_gate_end is None else tof_gate_end
+        integers = (nx, ny, gate_start, gate_end, settle_ms, flaw_gate_start,
+                    flaw_gate_end, averages, tof_gate_start, tof_gate_end, tof_threshold)
+        if any(type(value) is not int or value < 0 for value in integers):
+            raise ValueError('Scan indices and counts must be nonnegative integers')
+        if not 1 <= nx <= 1000 or not 1 <= ny <= 1000 or nx * ny > 100000:
             raise ValueError('Invalid scan dimensions')
+        if any(not math.isfinite(v) or v < 0 for v in (dx_mm, dy_mm, speed_mm_s)) or speed_mm_s <= 0:
+            raise ValueError('Invalid metric spacing or speed')
+        if (nx > 1 and dx_mm <= 0) or (ny > 1 and dy_mm <= 0):
+            raise ValueError('Spacing must be positive for multi-point axes')
         if not 0 <= gate_start < gate_end <= 8000:
-            raise ValueError('Gate must be inside the 8000-sample raw capture')
+            raise ValueError('Amplitude gate must be inside the 8000-sample raw capture')
         if (flaw_gate_start or flaw_gate_end) and not 0 <= flaw_gate_start < flaw_gate_end <= 8000:
             raise ValueError('Flaw gate must be inside the 8000-sample raw capture')
-        if not 1 <= averages <= 256:
-            raise ValueError('Averages must be between 1 and 256')
-        command = 'scan ' + ' '.join(map(str, values))
+        if not 0 <= tof_gate_start < tof_gate_end <= 8000 or not 0 <= tof_threshold <= 1023:
+            raise ValueError('Invalid TOF gate or threshold')
+        if not 1 <= averages <= 256 or settle_ms > 60000:
+            raise ValueError('Invalid averages or settle time')
+        values = (nx, ny, f'{dx_mm:g}', f'{dy_mm:g}', f'{speed_mm_s:g}',
+                  gate_start, gate_end, settle_ms, flaw_gate_start, flaw_gate_end,
+                  averages, tof_gate_start, tof_gate_end, tof_threshold)
+        command = 'scan_mm ' + ' '.join(map(str, values))
         if waveforms:
             command += ' waveforms'
+        if centered:
+            command += ' centered'
         scan_frames = protocol.FrameReader(_ExactSerialView(self.ser), read_size=16384) if waveforms else None
         old_timeout = self.ser.timeout
-        self.ser.timeout = max(30.0, (max(dx_steps, dy_steps) / 100.0) + 20.0)
+        self.ser.timeout = max(105.0, settle_ms / 1000.0 + 30.0,
+                               (100.0 if centered else max(dx_mm, dy_mm)) / speed_mm_s + 30.0)
         complete = False
         try:
-            self.command(command)
+            reply = self.command(command)
+            fields = dict(part.split('=', 1) for part in reply.split() if '=' in part)
+            actual_dx = float(fields['dx_mm'])
+            actual_dy = float(fields['dy_mm'])
             received = 0
+            if progress is not None:
+                progress('Homing X/Y')
             while True:
                 line = self.ser.readline().decode('ascii', 'replace').strip()
                 if not line:
                     raise TimeoutError('Timed out waiting for scan point')
                 parts = line.split()
-                if parts[0] == 'SCAN_POINT' and len(parts) == 7:
-                    row, col, x, y, amplitude, flaw = map(int, parts[1:])
+                if parts[0] in ('SCAN_POSITIONING', 'SCAN_RETURN_HOME') and len(parts) == 1:
+                    if progress is not None:
+                        progress('Returning home' if parts[0] == 'SCAN_RETURN_HOME' else 'Positioning to scan origin')
+                    continue
+                if parts[0] == 'SCAN_POINT' and len(parts) == 8:
+                    row, col = map(int, parts[1:3])
+                    x, y = map(float, parts[3:5])
+                    amplitude, flaw = map(int, parts[5:7])
+                    tof_us = float(parts[7])
                     point = {
-                        'row': row, 'col': col, 'x_steps': x,
-                        'y_steps': y, 'amplitude_pp': amplitude,
-                        'flaw_pp': flaw, 'averages': averages,
+                        'row': row, 'col': col, 'x_mm': x, 'y_mm': y,
+                        'dx_mm': actual_dx, 'dy_mm': actual_dy,
+                        'amplitude_pp': amplitude, 'flaw_pp': flaw,
+                        'tof_us': tof_us if tof_us >= 0 else float('nan'),
+                        'averages': averages,
                     }
                     if waveforms:
                         frame = scan_frames.read_frame()
                         if (frame.header.payload_name != 'raw' or
                                 frame.header.sample_count != 8000 or
+                                frame.header.sample_rate_hz != 60000000 or
                                 frame.header.sequence != received):
                             raise ValueError('Scan waveform does not match scan point')
                         point['waveform'] = frame.samples()

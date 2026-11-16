@@ -15,8 +15,12 @@ typedef struct {
     uint32_t flaw_gate_start;
     uint32_t flaw_gate_end;
     uint32_t averages;
+    uint32_t tof_gate_start;
+    uint32_t tof_gate_end;
+    uint32_t tof_threshold;
     uint32_t settle_ms;
     bool send_waveforms;
+    bool centered;
 } scan_config_t;
 
 bool scan_start(const scan_config_t *config, const char **error);

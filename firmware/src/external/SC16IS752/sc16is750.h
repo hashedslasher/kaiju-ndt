@@ -2,6 +2,8 @@
 #define MAIN_SC16IS750_H_
 
 #include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
 
 //Device Address
 
@@ -112,9 +114,15 @@ typedef struct {
   long crystal_freq;
   uint32_t timeout;
   int channels;
+  int last_error;
+  uint8_t last_selector;
+  const char *last_phase;
+  uint32_t actual_hz;
 } SC16IS750_t;
 
   void    SC16IS750_init(SC16IS750_t * dev, uint8_t protocol, uint8_t address, int channels);
+  bool SC16IS750_BusSetup(SC16IS750_t *dev);
+  bool SC16IS750_Probe(SC16IS750_t *dev, uint8_t *iocontrol);
   void    SC16IS750_begin(SC16IS750_t * dev, uint32_t baud_A, uint32_t baud_B, long crystal_freq);     
   int     SC16IS750_read(SC16IS750_t * dev, uint8_t channel);
   void    SC16IS750_write(SC16IS750_t * dev, uint8_t channel, uint8_t val);
@@ -138,6 +146,10 @@ typedef struct {
   
   int16_t SC16IS750_SetBaudrate(SC16IS750_t * dev, uint8_t channel, uint32_t baudrate);
   uint8_t SC16IS750_ReadRegister(SC16IS750_t * dev, uint8_t channel, uint8_t reg_addr);
+  bool SC16IS750_ReadRegisterChecked(SC16IS750_t *dev, uint8_t channel, uint8_t reg_addr, uint8_t *value);
+  bool SC16IS750_WriteRegisterChecked(SC16IS750_t *dev, uint8_t channel, uint8_t reg_addr, uint8_t val);
+  bool SC16IS750_WriteFIFO(SC16IS750_t *dev, uint8_t channel, const uint8_t *data, size_t length);
+  bool SC16IS750_ReadFIFO(SC16IS750_t *dev, uint8_t channel, uint8_t *data, size_t length);
   void    SC16IS750_WriteRegister(SC16IS750_t * dev, uint8_t channel, uint8_t reg_addr, uint8_t val);
   void    SC16IS750_SetLine(SC16IS750_t * dev, uint8_t channel, uint8_t data_length, uint8_t parity_select, uint8_t stop_length );
   void    SC16IS750_GPIOSetPinMode(SC16IS750_t * dev, uint8_t pin_number, uint8_t i_o);

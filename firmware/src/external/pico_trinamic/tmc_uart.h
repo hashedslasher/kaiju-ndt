@@ -1,9 +1,11 @@
 #ifndef TMC_UART_H
 #define TMC_UART_H
 
-#include "pico/stdlib.h"
-#include "hardware/uart.h"
+#include <stdbool.h>
+#include "sc16is750.h"
 
-void tmc_uart_init(uart_inst_t * uart, uint baudrate);
+void tmc_uart_init(SC16IS750_t *bridge);
+bool tmc_uart_last_ok(void);
+const char *tmc_uart_last_error(void);
 
 #endif

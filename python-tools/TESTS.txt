@@ -16,4 +16,6 @@ Edge: python acq.py --edge --csv data/edge.csv --plot
 Motion noise: python acq.py --motion_noise --csv data/motion_noise.csv
 Simulated C-scan: python tests/simulate_scan.py
 C-scan from CSV: python acq.py --scan --csv results/demo_cscan.csv
-Unit tests: python -m unittest discover -s tests -p "test_*.py"
+Unit tests: python -m unittest discover -s tests -t . -p "test_*.py"
+Live metric C-scan: python acq.py --scan --arm --nx 10 --ny 5 --dx-mm 0.8 --dy-mm 0.8 --speed-mm-s 20 --tof-gate-start-us 90 --tof-gate-end-us 94 --tof-threshold 20
+Historical step-coordinate CSV: python acq.py --scan --csv OLD.csv --legacy-steps-per-mm 50

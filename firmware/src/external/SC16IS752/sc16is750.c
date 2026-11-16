@@ -10,46 +10,136 @@ SC16IS750/752 Driver for RaspberryPi
 #include <stdbool.h>	
 #include <stdlib.h>  
 #include <string.h>
-#include <wiringPi.h>
-#include <wiringPiSPI.h>
-#include <wiringPiI2C.h>
+#include "pico/stdlib.h"
+#include "hardware/i2c.h"
+#include "hardware/gpio.h"
 #include "sc16is750.h"
 
-void SC16IS750_init(SC16IS750_t * dev, uint8_t protocol, uint8_t address, int channels)
+#define SC_TIMEOUT_US 25000u
+#define SC_I2C_HZ 100000u
+#define SC_SDA_PIN 28u
+#define SC_SCL_PIN 21u
+
+static bool bus_initialized;
+
+static bool sc_error(SC16IS750_t *dev, const char *phase, uint8_t subreg, int result)
 {
-	dev->protocol = protocol;
-	if ( dev->protocol == SC16IS750_PROTOCOL_I2C ) {
-		//dev->device_address_i2c = (address>>1);
-		dev->device_address_i2c = address;
-	} else {
-		dev->device_address_sspin = address;
-	}
-	dev->peek_flag = 0;
-	dev->channels = channels;
-	//dev->timeout = 1000;
+    dev->last_error = result;
+    dev->last_selector = subreg;
+    dev->last_phase = phase;
+    return false;
 }
 
-void SC16IS750_begin(SC16IS750_t * dev, uint32_t baud_A, uint32_t baud_B, long crystal_freq)
+bool SC16IS750_BusSetup(SC16IS750_t *dev)
 {
-	dev->crystal_freq = crystal_freq;
-	if ( dev->protocol == SC16IS750_PROTOCOL_I2C) {
-		dev->i2c_fd = wiringPiI2CSetup(dev->device_address_i2c);
-	} else {
-		pinMode(dev->device_address_sspin, OUTPUT);
-		digitalWrite(dev->device_address_sspin, HIGH);
-		dev->spi_channel = 0;
-		wiringPiSPISetup(dev->spi_channel, 4*1000*1000); // 4MHz
-		//wiringPiSPISetup(dev->spi_channel, 1*1000*1000); // 1MHz
-	};
-	SC16IS750_ResetDevice(dev);
-	SC16IS750_FIFOEnable(dev, SC16IS750_CHANNEL_A, 1);
-	SC16IS750_SetBaudrate(dev, SC16IS750_CHANNEL_A, baud_A);
-	SC16IS750_SetLine(dev, SC16IS750_CHANNEL_A, 8, 0, 1);
-	if (dev->channels == SC16IS750_DUAL_CHANNEL) {
-		SC16IS750_FIFOEnable(dev, SC16IS750_CHANNEL_B, 1);
-		SC16IS750_SetBaudrate(dev, SC16IS750_CHANNEL_B, baud_B);
-		SC16IS750_SetLine(dev, SC16IS750_CHANNEL_B, 8, 0, 1);
-	}
+    if (dev->protocol != SC16IS750_PROTOCOL_I2C)
+        return sc_error(dev, "protocol", 0, -20);
+    if (bus_initialized) i2c_deinit(i2c0);
+    gpio_init(SC_SDA_PIN);
+    gpio_init(SC_SCL_PIN);
+    gpio_disable_pulls(SC_SDA_PIN);
+    gpio_disable_pulls(SC_SCL_PIN);
+    dev->actual_hz = i2c_init(i2c0, SC_I2C_HZ);
+    gpio_set_function(SC_SDA_PIN, GPIO_FUNC_I2C);
+    gpio_set_function(SC_SCL_PIN, GPIO_FUNC_I2C);
+    bus_initialized = true;
+    sleep_us(100);
+    if (!gpio_get(SC_SDA_PIN) || !gpio_get(SC_SCL_PIN))
+        return sc_error(dev, "bus-not-high", 0, -21);
+    dev->last_error = 0;
+    dev->last_phase = "ok";
+    return true;
+}
+
+static bool sc_port_read(SC16IS750_t *dev, uint8_t subreg, uint8_t *out, size_t length)
+{
+    if (!dev || !out || !length || dev->protocol != SC16IS750_PROTOCOL_I2C) return false;
+    const int select = i2c_write_timeout_us(i2c0, dev->device_address_i2c, &subreg, 1, true, SC_TIMEOUT_US);
+    if (select != 1) return sc_error(dev, "select", subreg, select < 0 ? select : -10);
+    const int count = i2c_read_timeout_us(i2c0, dev->device_address_i2c, out, length, false, SC_TIMEOUT_US);
+    if (count != (int)length) return sc_error(dev, "read", subreg, count < 0 ? count : -11);
+    dev->last_error = 0;
+    dev->last_selector = subreg;
+    dev->last_phase = "ok";
+    return true;
+}
+
+static bool sc_port_write(SC16IS750_t *dev, uint8_t subreg, const uint8_t *data, size_t length)
+{
+    if (!dev || !data || !length || length > 64 || dev->protocol != SC16IS750_PROTOCOL_I2C) return false;
+    uint8_t frame[65];
+    frame[0] = subreg;
+    memcpy(frame + 1, data, length);
+    const int count = i2c_write_timeout_us(i2c0, dev->device_address_i2c, frame, length + 1, false, SC_TIMEOUT_US);
+    if (count != (int)(length + 1)) return sc_error(dev, "write", subreg, count < 0 ? count : -12);
+    dev->last_error = 0;
+    dev->last_selector = subreg;
+    dev->last_phase = "ok";
+    return true;
+}
+
+bool SC16IS750_ReadRegisterChecked(SC16IS750_t *dev, uint8_t channel, uint8_t reg, uint8_t *value)
+{
+    return sc_port_read(dev, (uint8_t)(reg << 3 | channel << 1), value, 1);
+}
+
+bool SC16IS750_WriteRegisterChecked(SC16IS750_t *dev, uint8_t channel, uint8_t reg, uint8_t value)
+{
+    return sc_port_write(dev, (uint8_t)(reg << 3 | channel << 1), &value, 1);
+}
+
+bool SC16IS750_WriteFIFO(SC16IS750_t *dev, uint8_t channel, const uint8_t *data, size_t length)
+{
+    if (!length) return true;
+    return sc_port_write(dev, (uint8_t)(SC16IS750_REG_THR << 3 | channel << 1), data, length);
+}
+
+bool SC16IS750_ReadFIFO(SC16IS750_t *dev, uint8_t channel, uint8_t *data, size_t length)
+{
+    if (!length) return true;
+    return sc_port_read(dev, (uint8_t)(SC16IS750_REG_RHR << 3 | channel << 1), data, length);
+}
+
+void SC16IS750_init(SC16IS750_t *dev, uint8_t protocol, uint8_t address, int channels)
+{
+    memset(dev, 0, sizeof(*dev));
+    dev->protocol = protocol;
+    dev->device_address_i2c = address;
+    dev->channels = channels;
+    dev->timeout = 40u;
+    dev->last_error = -1;
+}
+
+bool SC16IS750_Probe(SC16IS750_t *dev, uint8_t *iocontrol)
+{
+    if (!SC16IS750_BusSetup(dev)) return false;
+    if (!SC16IS750_ReadRegisterChecked(dev, SC16IS750_CHANNEL_A,
+                                      SC16IS750_REG_IOCONTROL, iocontrol)) return false;
+    return SC16IS750_ping(dev) != 0;
+}
+
+static bool sc_setup_uart(SC16IS750_t *dev, uint8_t channel, uint32_t baud)
+{
+    if (!SC16IS750_WriteRegisterChecked(dev, channel, SC16IS750_REG_LCR, 0x03u) ||
+        !SC16IS750_WriteRegisterChecked(dev, channel, SC16IS750_REG_IER, 0u) ||
+        !SC16IS750_WriteRegisterChecked(dev, channel, SC16IS750_REG_MCR, 0u) ||
+        !SC16IS750_WriteRegisterChecked(dev, channel, SC16IS750_REG_EFCR, 0u)) return false;
+    SC16IS750_FIFOEnable(dev, channel, 1);
+    if (dev->last_error) return false;
+    SC16IS750_SetBaudrate(dev, channel, baud);
+    if (dev->last_error) return false;
+    SC16IS750_SetLine(dev, channel, 8, 0, 1);
+    return dev->last_error == 0;
+}
+
+void SC16IS750_begin(SC16IS750_t *dev, uint32_t baud_A, uint32_t baud_B, long crystal_freq)
+{
+    dev->crystal_freq = crystal_freq;
+    uint8_t iocontrol;
+    if (!SC16IS750_Probe(dev, &iocontrol)) return;
+    if (!sc_setup_uart(dev, SC16IS750_CHANNEL_A, baud_A)) return;
+    if (dev->channels == SC16IS750_DUAL_CHANNEL)
+        (void)sc_setup_uart(dev, SC16IS750_CHANNEL_B, baud_B);
 }
 
 int SC16IS750_available(SC16IS750_t * dev, uint8_t channel)
@@ -88,164 +178,61 @@ uint8_t SC16IS750_digitalRead(SC16IS750_t * dev, uint8_t pin)
 }
 
 
-uint8_t SC16IS750_ReadRegister(SC16IS750_t * dev, uint8_t channel, uint8_t reg_addr)
+uint8_t SC16IS750_ReadRegister(SC16IS750_t *dev, uint8_t channel, uint8_t reg_addr)
 {
-	uint8_t result;
-	//printf("ReadRegister channel=%d reg_addr=%x\n",channel, (reg_addr<<3 | channel<<1));
-	if ( dev->protocol == SC16IS750_PROTOCOL_I2C ) {	// register read operation via I2C
-		result = wiringPiI2CReadReg8(dev->i2c_fd, (reg_addr<<3 | channel<<1));
-		//printf("result=0x%x\n",result);
-	} else if (dev->protocol == SC16IS750_PROTOCOL_SPI) {	//register read operation via SPI
-		digitalWrite(dev->device_address_sspin, LOW);
-		delayMicroseconds(10);
-		unsigned char spi_data[2];
-		spi_data[0] = 0x80|(reg_addr<<3 | channel<<1);
-		spi_data[1] = 0xff;
-		//printf("spi_data[in]=0x%x 0x%x\n",spi_data[0],spi_data[1]);
-		wiringPiSPIDataRW(dev->spi_channel, spi_data, 2);
-		delayMicroseconds(10);
-		digitalWrite(dev->device_address_sspin, HIGH);
-		//printf("spi_data[out]=0x%x 0x%x\n",spi_data[0],spi_data[1]);
-		result = spi_data[1];
-	}
-	return result;
-
+    uint8_t value = 0xFF;
+    (void)SC16IS750_ReadRegisterChecked(dev, channel, reg_addr, &value);
+    return value;
 }
 
-void SC16IS750_WriteRegister(SC16IS750_t * dev, uint8_t channel, uint8_t reg_addr, uint8_t val)
+void SC16IS750_WriteRegister(SC16IS750_t *dev, uint8_t channel, uint8_t reg_addr, uint8_t val)
 {
-	//printf("WriteRegister channel=%d reg_addr=%x val=%x\n",channel, (reg_addr<<3 | channel<<1), val);
-	if ( dev->protocol == SC16IS750_PROTOCOL_I2C ) {	// register read operation via I2C
-		wiringPiI2CWriteReg8(dev->i2c_fd, (reg_addr<<3 | channel<<1), val);
-	} else {
-		digitalWrite(dev->device_address_sspin, LOW);
-		delayMicroseconds(10);
-		unsigned char spi_data[2];
-		spi_data[0] = (reg_addr<<3 | channel<<1);
-		spi_data[1] = val;
-		wiringPiSPIDataRW(dev->spi_channel, spi_data, 2);
-		delayMicroseconds(10);
-		digitalWrite(dev->device_address_sspin, HIGH);
-	}
-	return ;
+    (void)SC16IS750_WriteRegisterChecked(dev, channel, reg_addr, val);
 }
 
-int16_t SC16IS750_SetBaudrate(SC16IS750_t * dev, uint8_t channel, uint32_t baudrate) //return error of baudrate parts per thousand
+int16_t SC16IS750_SetBaudrate(SC16IS750_t *dev, uint8_t channel, uint32_t baudrate)
 {
-	uint16_t divisor;
-	uint8_t prescaler;
-	uint32_t actual_baudrate;
-	int16_t error;
-	uint8_t temp_lcr;
-	if ( (SC16IS750_ReadRegister(dev, channel, SC16IS750_REG_MCR)&0x80) == 0) { //if prescaler==1
-		prescaler = 1;
-	} else {
-		prescaler = 4;
-	}
-
-	//divisor = (SC16IS750_CRYSTCAL_FREQ/prescaler)/(baudrate*16);
-	uint32_t divisor1 = dev->crystal_freq/prescaler;
-	//printf("dev->crystal_freq=%ld prescaler=%d divisor1=%d\n",dev->crystal_freq, prescaler, divisor1);
-	//uint32_t max_baudrate = divisor1/16;
-	//printf("max_baudrate=%d\n",max_baudrate);
-	uint32_t divisor2 = baudrate*16;
-	//printf("divisor2=%d\n",divisor2);
-	divisor = (dev->crystal_freq/prescaler)/(baudrate*16);
-	if (divisor2 > divisor1) {
-		printf("This baudrate (%d) is not support\n",baudrate);
-		return 0;
-	}
-	//divisor = divisor1/divisor2;
-	//divisor rounds up
-	double wk = (double)divisor1/(double)divisor2;
-	divisor = wk + 0.999;
-	//printf("baudrate=%d divisor=%d\n",baudrate,divisor);
-
-	temp_lcr = SC16IS750_ReadRegister(dev, channel, SC16IS750_REG_LCR);
-	temp_lcr |= 0x80;
-	SC16IS750_WriteRegister(dev, channel, SC16IS750_REG_LCR, temp_lcr);
-	//write to DLL
-	SC16IS750_WriteRegister(dev, channel, SC16IS750_REG_DLL, (uint8_t)divisor);
-	//write to DLH
-	SC16IS750_WriteRegister(dev, channel, SC16IS750_REG_DLH, (uint8_t)(divisor>>8));
-	temp_lcr &= 0x7F;
-	SC16IS750_WriteRegister(dev, channel, SC16IS750_REG_LCR, temp_lcr);
-
-#if 0
-	actual_baudrate = divisor1 / divisor2;
-	error = ((float)actual_baudrate-baudrate)*1000/baudrate;
-#endif
-	actual_baudrate = (divisor1/divisor)/16;
-	error = baudrate - actual_baudrate;
-	//printf("actual_baudrate=%d error=%d\n", actual_baudrate, error);
-	if (error != 0) {
-		printf("Warning:baudrate=%d actual_baudrate=%d\n", baudrate, actual_baudrate);
-	}
-
-#ifdef	SC16IS750_DEBUG_PRINT
-	printf("Desired baudrate: ");
-	printf("%x\n", baudrate);
-	printf("Calculated divisor: ");
-	printf("%x\n", divisor);
-	printf("Actual baudrate: ");
-	printf("%x\n", actual_baudrate);
-	printf("Baudrate error: ");
-	printf("%x\n", error);
-#endif
-
-	return error;
-
+    if (!baudrate || dev->crystal_freq <= 0) {
+        dev->last_error = -23;
+        return -1;
+    }
+    uint8_t mcr, lcr;
+    if (!SC16IS750_ReadRegisterChecked(dev, channel, SC16IS750_REG_MCR, &mcr) ||
+        !SC16IS750_ReadRegisterChecked(dev, channel, SC16IS750_REG_LCR, &lcr)) return -1;
+    const uint32_t divisor_freq = (uint32_t)dev->crystal_freq / ((mcr & 0x80u) ? 4u : 1u);
+    const uint32_t target = baudrate * 16u;
+    if (target > divisor_freq || !target) {
+        dev->last_error = -24;
+        return -1;
+    }
+    const uint32_t divisor = (divisor_freq + target / 2u) / target;
+    if (!divisor || divisor > 65535u) {
+        dev->last_error = -25;
+        return -1;
+    }
+    if (!SC16IS750_WriteRegisterChecked(dev, channel, SC16IS750_REG_LCR, lcr | 0x80u)) return -1;
+    if (!SC16IS750_WriteRegisterChecked(dev, channel, SC16IS750_REG_DLL, (uint8_t)divisor) ||
+        !SC16IS750_WriteRegisterChecked(dev, channel, SC16IS750_REG_DLH, (uint8_t)(divisor >> 8))) {
+        return -1;
+    }
+    if (!SC16IS750_WriteRegisterChecked(dev, channel, SC16IS750_REG_LCR, lcr & 0x7Fu)) return -1;
+    const uint32_t actual_baud = divisor_freq / (16u * divisor);
+    return (int16_t)((int32_t)(actual_baud * 1000u / baudrate) - 1000);
 }
 
-void SC16IS750_SetLine(SC16IS750_t * dev, uint8_t channel, uint8_t data_length, uint8_t parity_select, uint8_t stop_length )
+void SC16IS750_SetLine(SC16IS750_t *dev, uint8_t channel, uint8_t data_length,
+                        uint8_t parity_select, uint8_t stop_length)
 {
-	uint8_t temp_lcr;
-	temp_lcr = SC16IS750_ReadRegister(dev, channel, SC16IS750_REG_LCR);
-	temp_lcr &= 0xC0; //Clear the lower six bit of LCR (LCR[0] to LCR[5]
-#ifdef	SC16IS750_DEBUG_PRINT
-	printf("LCR Register:0x");
-	printf("%x\n", temp_lcr);
-#endif
-	switch (data_length) { //data length settings
-	case 5:
-		break;
-	case 6:
-		temp_lcr |= 0x01;
-		break;
-	case 7:
-		temp_lcr |= 0x02;
-		break;
-	case 8:
-		temp_lcr |= 0x03;
-		break;
-	default:
-		temp_lcr |= 0x03;
-		break;
-	}
-
-	if ( stop_length == 2 ) {
-	temp_lcr |= 0x04;
-	}
-
-	switch (parity_select) {		//parity selection length settings
-	case 0:				//no parity
-		 break;
-	case 1:				//odd parity
-		temp_lcr |= 0x08;
-		break;
-	case 2:				//even parity
-		temp_lcr |= 0x18;
-		break;
-	case 3:				//force '1' parity
-		temp_lcr |= 0x03;
-		break;
-	case 4:				//force '0' parity
-		break;
-	default:
-		break;
-	}
-
-	SC16IS750_WriteRegister(dev, channel, SC16IS750_REG_LCR, temp_lcr);
+    uint8_t lcr;
+    if (!SC16IS750_ReadRegisterChecked(dev, channel, SC16IS750_REG_LCR, &lcr)) return;
+    lcr &= 0xC0u;
+    lcr |= data_length >= 5 && data_length <= 8 ? (data_length - 5u) : 3u;
+    if (stop_length == 2u) lcr |= 0x04u;
+    if (parity_select == 1u) lcr |= 0x08u;
+    else if (parity_select == 2u) lcr |= 0x18u;
+    else if (parity_select == 3u) lcr |= 0x28u;
+    else if (parity_select == 4u) lcr |= 0x38u;
+    (void)SC16IS750_WriteRegisterChecked(dev, channel, SC16IS750_REG_LCR, lcr);
 }
 
 void SC16IS750_GPIOSetPinMode(SC16IS750_t * dev, uint8_t pin_number, uint8_t i_o)
@@ -253,7 +240,7 @@ void SC16IS750_GPIOSetPinMode(SC16IS750_t * dev, uint8_t pin_number, uint8_t i_o
 	uint8_t temp_iodir;
 
 	temp_iodir = SC16IS750_ReadRegister(dev, SC16IS750_CHANNEL_BOTH, SC16IS750_REG_IODIR);
-	if ( i_o == OUTPUT ) {
+	if ( i_o != 0 ) {
 		temp_iodir |= (0x01 << pin_number);
 	} else {
 		temp_iodir &= (uint8_t)~(0x01 << pin_number);
@@ -315,15 +302,13 @@ void SC16IS750_SetPinInterrupt(SC16IS750_t * dev, uint8_t io_int_ena)
 	return;
 }
 
-void SC16IS750_ResetDevice(SC16IS750_t * dev)
+void SC16IS750_ResetDevice(SC16IS750_t *dev)
 {
-	uint8_t reg;
-
-	reg = SC16IS750_ReadRegister(dev, SC16IS750_CHANNEL_BOTH, SC16IS750_REG_IOCONTROL);
-	reg |= 0x08;
-	SC16IS750_WriteRegister(dev, SC16IS750_CHANNEL_BOTH, SC16IS750_REG_IOCONTROL, reg);
-
-	return;
+    uint8_t control;
+    if (!SC16IS750_ReadRegisterChecked(dev, SC16IS750_CHANNEL_A,
+                                      SC16IS750_REG_IOCONTROL, &control)) return;
+    (void)SC16IS750_WriteRegisterChecked(dev, SC16IS750_CHANNEL_A,
+                                         SC16IS750_REG_IOCONTROL, control | 0x08u);
 }
 
 void SC16IS750_ModemPin(SC16IS750_t * dev, uint8_t gpio) //gpio == 0, gpio[7:4] are modem pins, gpio == 1 gpio[7:4] are gpios
@@ -398,20 +383,9 @@ int16_t SC16IS750_InterruptEventTest(SC16IS750_t * dev, uint8_t channel)
 	return -1;
 }
 
-void SC16IS750_FIFOEnable(SC16IS750_t * dev, uint8_t channel, uint8_t fifo_enable)
+void SC16IS750_FIFOEnable(SC16IS750_t *dev, uint8_t channel, uint8_t enabled)
 {
-	uint8_t temp_fcr;
-
-	temp_fcr = SC16IS750_ReadRegister(dev, channel, SC16IS750_REG_FCR);
-
-	if (fifo_enable == 0){
-		temp_fcr &= 0xFE;
-	} else {
-		temp_fcr |= 0x01;
-	}
-	SC16IS750_WriteRegister(dev, channel, SC16IS750_REG_FCR, temp_fcr);
-
-	return;
+    SC16IS750_WriteRegister(dev, channel, SC16IS750_REG_FCR, enabled ? 0x07u : 0u);
 }
 
 void SC16IS750_FIFOReset(SC16IS750_t * dev, uint8_t channel, uint8_t rx_fifo)
@@ -466,26 +440,18 @@ uint8_t SC16IS750_FIFOAvailableSpace(SC16IS750_t * dev, uint8_t channel)
 	return SC16IS750_ReadRegister(dev, channel, SC16IS750_REG_TXLVL);
 }
 
-void SC16IS750_WriteByte(SC16IS750_t * dev, uint8_t channel, uint8_t val)
+void SC16IS750_WriteByte(SC16IS750_t *dev, uint8_t channel, uint8_t val)
 {
-	uint8_t tmp_lsr;
-/*
-	while ( SC16IS750_FIFOAvailableSpace(dev, channel) == 0 ){
-#ifdef	SC16IS750_DEBUG_PRINT
-		printf("No available space\n");
-#endif
-
-	};
-#ifdef	SC16IS750_DEBUG_PRINT
-	printf("++++++++++++Data sent\n");
-#endif
-	SC16IS750_WriteRegister(dev, channel, SC16IS750_REG_THR, val);
-*/
-	do {
-		tmp_lsr = SC16IS750_ReadRegister(dev, channel, SC16IS750_REG_LSR);
-	} while ((tmp_lsr&0x20) ==0);
-
-	SC16IS750_WriteRegister(dev, channel, SC16IS750_REG_THR, val);
+    const uint64_t deadline = time_us_64() + 12000u;
+    do {
+        uint8_t lsr;
+        if (!SC16IS750_ReadRegisterChecked(dev, channel, SC16IS750_REG_LSR, &lsr)) return;
+        if ((lsr & 0x20u) != 0) {
+            SC16IS750_WriteRegister(dev, channel, SC16IS750_REG_THR, val);
+            return;
+        }
+    } while (time_us_64() < deadline);
+    dev->last_error = -21;
 }
 
 int SC16IS750_ReadByte(SC16IS750_t * dev, uint8_t channel)
@@ -523,20 +489,39 @@ void SC16IS750_EnableTransmit(SC16IS750_t * dev, uint8_t channel, uint8_t tx_ena
 	return;
 }
 
-uint8_t SC16IS750_ping(SC16IS750_t * dev)
+uint8_t SC16IS750_ping(SC16IS750_t *dev)
 {
-	SC16IS750_WriteRegister(dev, SC16IS750_CHANNEL_A, SC16IS750_REG_SPR, 0x55);
-	if (SC16IS750_ReadRegister(dev, SC16IS750_CHANNEL_A, SC16IS750_REG_SPR) !=0x55) {
-		return 0;
-	}
-
-	SC16IS750_WriteRegister(dev, SC16IS750_CHANNEL_A, SC16IS750_REG_SPR, 0xAA);
-	if (SC16IS750_ReadRegister(dev, SC16IS750_CHANNEL_A, SC16IS750_REG_SPR) !=0xAA) {
-		return 0;
-	}
-
-	return 1;
-
+    uint8_t original, probe;
+    const uint8_t selector = SC16IS750_REG_SPR << 3;
+    if (!SC16IS750_ReadRegisterChecked(dev, SC16IS750_CHANNEL_A, SC16IS750_REG_SPR, &original))
+        return 0;
+    const uint8_t patterns[] = {0x55u, 0xAAu};
+    bool ok = true;
+    for (unsigned i = 0; i < sizeof(patterns); ++i) {
+        if (!SC16IS750_WriteRegisterChecked(dev, SC16IS750_CHANNEL_A, SC16IS750_REG_SPR, patterns[i]) ||
+            !SC16IS750_ReadRegisterChecked(dev, SC16IS750_CHANNEL_A, SC16IS750_REG_SPR, &probe)) {
+            ok = false;
+            break;
+        }
+        if (probe != patterns[i]) {
+            sc_error(dev, "scratch-mismatch", selector, -30);
+            ok = false;
+            break;
+        }
+    }
+    const int saved_error = dev->last_error;
+    const uint8_t saved_selector = dev->last_selector;
+    const char *saved_phase = dev->last_phase;
+    const bool can_restore = ok || SC16IS750_BusSetup(dev);
+    const bool restored = can_restore && SC16IS750_WriteRegisterChecked(dev, SC16IS750_CHANNEL_A, SC16IS750_REG_SPR, original) &&
+        SC16IS750_ReadRegisterChecked(dev, SC16IS750_CHANNEL_A, SC16IS750_REG_SPR, &probe);
+    if (!ok) {
+        sc_error(dev, saved_phase, saved_selector, saved_error);
+        return 0;
+    }
+    if (!restored) return 0;
+    if (probe != original) return sc_error(dev, "scratch-restore", selector, -31);
+    return 1;
 }
 
 void SC16IS750_setTimeout(SC16IS750_t * dev, uint32_t time_out)
@@ -568,7 +553,7 @@ int16_t SC16IS750_readwithtimeout(SC16IS750_t * dev, uint8_t * channel)
 {
 	int16_t tmp;
 	uint32_t time_stamp;
-	time_stamp = millis();
+	time_stamp = to_ms_since_boot(get_absolute_time());
 	do {
 		*channel = SC16IS750_CHANNEL_A;
 		tmp = SC16IS750_read(dev, SC16IS750_CHANNEL_A);
@@ -578,19 +563,19 @@ int16_t SC16IS750_readwithtimeout(SC16IS750_t * dev, uint8_t * channel)
 			tmp = SC16IS750_read(dev, SC16IS750_CHANNEL_B);
 			if (tmp >= 0) return tmp;
 		}
-	} while(millis() - time_stamp < dev->timeout);
+	} while(to_ms_since_boot(get_absolute_time()) - time_stamp < dev->timeout);
 	return -1;	 // -1 indicates timeout
 }
 
-void SC16IS750_flush(SC16IS750_t * dev, uint8_t channel)
+void SC16IS750_flush(SC16IS750_t *dev, uint8_t channel)
 {
-	uint8_t tmp_lsr;
-
-	do {
-		tmp_lsr = SC16IS750_ReadRegister(dev, channel, SC16IS750_REG_LSR);
-	} while ((tmp_lsr&0x20) ==0);
-
-
+    const uint64_t deadline = time_us_64() + 12000u;
+    do {
+        uint8_t lsr;
+        if (!SC16IS750_ReadRegisterChecked(dev, channel, SC16IS750_REG_LSR, &lsr)) return;
+        if (lsr & 0x40u) return;
+    } while (time_us_64() < deadline);
+    dev->last_error = -22;
 }
 
 int SC16IS750_peek(SC16IS750_t * dev, uint8_t channel)

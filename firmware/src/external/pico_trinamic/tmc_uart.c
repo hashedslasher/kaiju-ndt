@@ -18,62 +18,142 @@
   along with grblHAL. If not, see <http://www.gnu.org/licenses/>.
 */
 
+/* The RP2350 board connects TMC UARTs through the SC16IS752 I2C bridge. */
+#include <string.h>
 #include "common.h"
 #include "tmc_uart.h"
+#include "pico/stdlib.h"
 
-static uart_inst_t * tmc_uart;
+#define TMC_UART_TIMEOUT_US 70000u
 
-TMC_uart_write_datagram_t *tmc_uart_read (trinamic_motor_t driver, TMC_uart_read_datagram_t *dgr)
+static SC16IS750_t *serial_bridge;
+static bool transport_ok;
+static const char *transport_error = "not initialized";
+
+void tmc_uart_init(SC16IS750_t *bridge)
 {
-    static TMC_uart_write_datagram_t wdgr = {0};
-    volatile uint32_t dly = 50, ms = to_ms_since_boot(get_absolute_time());
-
-//    tmc_uart.reset_write_buffer();
-    uart_write_blocking(tmc_uart, dgr->data, sizeof(TMC_uart_write_datagram_t));
-    uart_tx_wait_blocking(tmc_uart);
-
-    while(--dly)
-        tight_loop_contents();
-
-    // Wait for response with 2ms timeout
-    while(!uart_is_readable(tmc_uart)) {
-        if(to_ms_since_boot(get_absolute_time()) - ms >= 3)
-            break;
-    }
-
-    uint8_t buffer[8];
-
-    if(uart_is_readable(tmc_uart)) {
-        uart_read_blocking(tmc_uart, buffer, 8);
-    }
-
-    if(buffer != NULL) {
-        wdgr.data[0] = buffer[0];
-        wdgr.data[1] = buffer[1];
-        wdgr.data[2] = buffer[2];
-        wdgr.data[3] = buffer[3];
-        wdgr.data[4] = buffer[4];
-        wdgr.data[5] = buffer[5];
-        wdgr.data[6] = buffer[6];
-        wdgr.data[7] = buffer[7];
-    } else
-        wdgr.msg.addr.value = 0xFF;
-
-    dly = 8000;
-    while(--dly)
-        tight_loop_contents();
-
-    return &wdgr;
+    serial_bridge = bridge;
+    transport_ok = bridge != NULL;
+    transport_error = transport_ok ? "ok" : "UART bridge missing";
 }
 
-void tmc_uart_write (trinamic_motor_t driver, TMC_uart_write_datagram_t *dgr)
+bool tmc_uart_last_ok(void)
 {
-    uart_write_blocking(tmc_uart, dgr->data, sizeof(TMC_uart_write_datagram_t));
-    uart_tx_wait_blocking(tmc_uart);
+    return transport_ok;
 }
 
-void tmc_uart_init (uart_inst_t * uart, uint baudrate)
-{   
-    uart_init(uart, baudrate);
-    tmc_uart = uart;
+const char *tmc_uart_last_error(void)
+{
+    return transport_error;
+}
+
+static bool error(const char *reason)
+{
+    transport_ok = false;
+    transport_error = reason;
+    return false;
+}
+
+static bool channel_from_motor(trinamic_motor_t motor, uint8_t *channel)
+{
+    if (!serial_bridge || motor.id >= 5u) return error("invalid motor / bridge");
+    *channel = motor.id < 3u ? SC16IS750_CHANNEL_A : SC16IS750_CHANNEL_B;
+    return true;
+}
+
+static bool clear_rx(uint8_t channel)
+{
+    uint8_t count;
+    if (!SC16IS750_ReadRegisterChecked(serial_bridge, channel, SC16IS750_REG_RXLVL, &count))
+        return error("SC RXLVL I2C read failed");
+    while (count) {
+        uint8_t unused[64];
+        const uint8_t amount = count > sizeof(unused) ? sizeof(unused) : count;
+        if (!SC16IS750_ReadFIFO(serial_bridge, channel, unused, amount))
+            return error("SC RX drain failed");
+        count = (uint8_t)(count - amount);
+    }
+    return true;
+}
+
+static bool transmit(uint8_t channel, const uint8_t *bytes, size_t count)
+{
+    uint8_t capacity;
+    if (!clear_rx(channel)) return false;
+    if (!SC16IS750_ReadRegisterChecked(serial_bridge, channel, SC16IS750_REG_TXLVL, &capacity))
+        return error("SC TXLVL read failed");
+    if (capacity < count) return error("SC TX FIFO full");
+    if (!SC16IS750_WriteFIFO(serial_bridge, channel, bytes, count))
+        return error("SC TX FIFO I2C write failed");
+
+    const uint64_t deadline = time_us_64() + TMC_UART_TIMEOUT_US;
+    do {
+        uint8_t lsr;
+        if (!SC16IS750_ReadRegisterChecked(serial_bridge, channel, SC16IS750_REG_LSR, &lsr))
+            return error("SC LSR read failed");
+        if (lsr & 0x40u) {
+            transport_ok = true;
+            transport_error = "ok";
+            return true;
+        }
+    } while (time_us_64() < deadline);
+    return error("SC transmit completion timeout");
+}
+
+void tmc_uart_write(trinamic_motor_t motor, TMC_uart_write_datagram_t *dgr)
+{
+    uint8_t channel;
+    if (!channel_from_motor(motor, &channel)) return;
+    if (!transmit(channel, dgr->data, sizeof(dgr->data))) return;
+    sleep_us(150u);
+}
+
+TMC_uart_write_datagram_t *tmc_uart_read(trinamic_motor_t motor, TMC_uart_read_datagram_t *dgr)
+{
+    static TMC_uart_write_datagram_t reply;
+    memset(&reply, 0, sizeof(reply));
+    reply.msg.addr.value = 0xFFu;
+    uint8_t channel;
+    if (!channel_from_motor(motor, &channel)) return &reply;
+    if (!transmit(channel, dgr->data, sizeof(dgr->data))) return &reply;
+
+    uint8_t window[8] = {0};
+    size_t used = 0;
+    const uint64_t deadline = time_us_64() + TMC_UART_TIMEOUT_US;
+    while (time_us_64() < deadline) {
+        uint8_t available;
+        if (!SC16IS750_ReadRegisterChecked(serial_bridge, channel, SC16IS750_REG_RXLVL, &available)) {
+            error("SC reply RXLVL I2C read failed");
+            return &reply;
+        }
+        if (available == 0) {
+            sleep_us(50u);
+            continue;
+        }
+        while (available) {
+            uint8_t fifo[64];
+            const uint8_t amount = available > sizeof(fifo) ? sizeof(fifo) : available;
+            if (!SC16IS750_ReadFIFO(serial_bridge, channel, fifo, amount)) {
+                error("SC reply FIFO I2C read failed");
+                return &reply;
+            }
+            available = (uint8_t)(available - amount);
+            for (unsigned i = 0; i < amount; ++i) {
+                if (used < sizeof(window)) window[used++] = fifo[i];
+                else {
+                    memmove(window, window + 1, sizeof(window) - 1);
+                    window[sizeof(window) - 1] = fifo[i];
+                }
+                if (used == sizeof(window) && window[0] == 0x05u &&
+                    window[1] == 0xFFu && window[2] == dgr->msg.addr.value) {
+                    memcpy(reply.data, window, sizeof(reply.data));
+                    transport_ok = true;
+                    transport_error = "ok";
+                    return &reply;
+                }
+            }
+        }
+    }
+    error("TMC UART reply timeout");
+    return &reply;
 }

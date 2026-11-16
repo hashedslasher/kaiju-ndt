@@ -1,5 +1,20 @@
 import sys
 import math
+if __name__ == '__main__' and len(sys.argv) > 1 and sys.argv[1] in ('--i2c-test', '--temp-test', '--temp-stats'):
+    from lib.device import Pic0rick
+    if len(sys.argv) != 2:
+        sys.exit('Usage: python acq.py --i2c-test | --temp-test | --temp-stats')
+    probe = None
+    try:
+        probe = Pic0rick(timeout=3.0)
+        command = {'--i2c-test': 'i2c test', '--temp-test': 'temp test', '--temp-stats': 'temp stats'}[sys.argv[1]]
+        print(f'[Diagnostic] {probe.command(command)}')
+    except (ValueError, RuntimeError, TimeoutError, OSError) as exc:
+        sys.exit(f'[Diagnostic] {exc}')
+    finally:
+        if probe is not None:
+            probe.close()
+    sys.exit(0)
 if __name__ == '__main__' and len(sys.argv) > 1 and sys.argv[1].startswith('--'):
     from tests import dispatch
     sys.exit(dispatch.run(sys.argv[1:]))
@@ -9,7 +24,11 @@ from PyQt5.QtWidgets import QAction
 import pyqtgraph as pg
 from lib.device import Pic0rick
 from lib.protocol import alaw_decode
+from lib.gamepad import GamepadFilter, POLL_MS, jog_command as gamepad_jog_command
 from lib.scan_ui import ScanSetupPanel, ScanWorker
+from lib.scan_geometry import centered_plan
+from lib.bscan import sample_window, rectify_waveforms, bscan_line
+from lib.plot_ranges import waveform_y_range
 from PyQt5.QtWidgets import QWidget, QApplication
 from PyQt5.QtCore import Qt
 
@@ -22,51 +41,7 @@ except ImportError:
     sdl_controller = None
 
 
-GAMEPAD_DEADZONE = 0.1
-GAMEPAD_POLL_MS = 10
 TANK_BOTTOM_AT_Z_ZERO_MM = 7.875 * 25.4
-Z_STEPS_PER_MM = 200.0
-
-
-GAMEPAD_MAX_SPEED_HZ = {"x": 2500, "y": 2500, "z": 3000}
-GAMEPAD_MIN_SPEED_HZ = 100
-GAMEPAD_SPEED_STEP_HZ = 50
-
-
-def stick_deflection(raw_value):
-
-    value = max(-32768, min(32767, raw_value))
-    value /= 32768.0 if value < 0 else 32767.0
-    magnitude = abs(value)
-    if magnitude <= GAMEPAD_DEADZONE:
-        return 0.0
-    scaled = (magnitude - GAMEPAD_DEADZONE) / (1.0 - GAMEPAD_DEADZONE)
-    return scaled if value > 0 else -scaled
-
-
-def gamepad_jog_command(axis, deflection):
-
-    if deflection == 0:
-        return f"stop_{axis}"
-
-    max_speed = int(GAMEPAD_MAX_SPEED_HZ[axis])
-    if max_speed <= 0:
-        return f"stop_{axis}"
-
-    min_speed = min(GAMEPAD_MIN_SPEED_HZ, max_speed)
-    travel = min(1.0, abs(deflection))
-    speed = min_speed + (max_speed - min_speed) * travel
-
-    speed = int(round(speed / GAMEPAD_SPEED_STEP_HZ)) * GAMEPAD_SPEED_STEP_HZ
-    speed = max(min_speed, min(max_speed, speed))
-
-
-    negative, positive = {
-        "x": ("plus", "minus"),
-        "y": ("minus", "plus"),
-        "z": ("down", "up"),
-    }[axis]
-    return f"jog_{axis} {positive if deflection > 0 else negative} {speed}"
 
 
 class OverlayLineEdit(QtWidgets.QLineEdit):
@@ -97,7 +72,7 @@ class AScanApp(QtWidgets.QMainWindow):
         self.file_menu.addAction(self.save_image)
 
         self.probe = Pic0rick()
-        self.fs =30e6
+        self.fs = 60e6
         self.gain = 460
         self.pon, self.poff, self.damp = 75, 75, 6000
 
@@ -110,10 +85,41 @@ class AScanApp(QtWidgets.QMainWindow):
         self.plot_widget = pg.PlotWidget()
         self.graph_splitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
         self.graph_splitter.addWidget(self.plot_widget)
+        self.bscan_panel = QtWidgets.QWidget()
+        b_layout = QtWidgets.QVBoxLayout(self.bscan_panel)
+        b_layout.setContentsMargins(0, 0, 0, 0)
+        b_controls = QtWidgets.QHBoxLayout()
+        b_controls.addWidget(QtWidgets.QLabel('B-scan row'))
+        self.bscan_row_select = QtWidgets.QSpinBox()
+        self.bscan_row_select.setRange(1, 1)
+        self.bscan_row_select.setEnabled(False)
+        self.bscan_row_select.valueChanged.connect(self.select_bscan_row)
+        b_controls.addWidget(self.bscan_row_select)
+        b_controls.addStretch()
+        b_layout.addLayout(b_controls)
+        self.bscan_graph = pg.GraphicsLayoutWidget()
+        self.bscan_plot = self.bscan_graph.addPlot(row=0, col=0, title='B-scan')
+        self.bscan_plot.setLabel('bottom', 'X', units='mm')
+        self.bscan_plot.setLabel('left', 'Time', units='µs')
+        self.bscan_plot.getAxis('bottom').enableAutoSIPrefix(False)
+        self.bscan_plot.getAxis('left').enableAutoSIPrefix(False)
+        self.bscan_plot.getViewBox().invertY(True)
+        self.bscan_plot.getViewBox().setLimits(xMin=0)
+        self.bscan_image = pg.ImageItem(axisOrder='row-major')
+        self.bscan_plot.addItem(self.bscan_image)
+        self.bscan_histogram = pg.HistogramLUTItem(image=self.bscan_image)
+        self.bscan_histogram.gradient.loadPreset('viridis')
+        self.bscan_graph.addItem(self.bscan_histogram, row=0, col=1)
+        b_layout.addWidget(self.bscan_graph)
+        self.graph_splitter.addWidget(self.bscan_panel)
+        self.bscan_panel.hide()
+        self.bscan_volume = None
+        self.bscan_data = None
+        self.bscan_current_row = None
         self.cscan_graph = pg.GraphicsLayoutWidget()
         self.cscan_plot = self.cscan_graph.addPlot(row=0, col=0, title='Amplitude scan')
-        self.cscan_plot.setLabel('bottom', 'X')
-        self.cscan_plot.setLabel('left', 'Y')
+        self.cscan_plot.setLabel('bottom', 'X', units='mm')
+        self.cscan_plot.setLabel('left', 'Y', units='mm')
         self.cscan_plot.setAspectLocked(True)
         self.cscan_image = pg.ImageItem(axisOrder='row-major')
         self.cscan_plot.addItem(self.cscan_image)
@@ -122,8 +128,8 @@ class AScanApp(QtWidgets.QMainWindow):
         self.cscan_graph.addItem(self.cscan_histogram, row=0, col=1)
         self.cscan_histogram.setLevels(0, 1023)
         self.flaw_plot = self.cscan_graph.addPlot(row=0, col=2, title='Flaw scan')
-        self.flaw_plot.setLabel('bottom', 'X')
-        self.flaw_plot.setLabel('left', 'Y')
+        self.flaw_plot.setLabel('bottom', 'X', units='mm')
+        self.flaw_plot.setLabel('left', 'Y', units='mm')
         self.flaw_plot.setAspectLocked(True)
         self.flaw_image = pg.ImageItem(axisOrder='row-major')
         self.flaw_plot.addItem(self.flaw_image)
@@ -131,21 +137,42 @@ class AScanApp(QtWidgets.QMainWindow):
         self.flaw_histogram.gradient.loadPreset('viridis')
         self.cscan_graph.addItem(self.flaw_histogram, row=0, col=3)
         self.flaw_histogram.setLevels(0, 1023)
+        self.tof_plot = self.cscan_graph.addPlot(row=0, col=4, title='TOF scan (µs)')
+        self.tof_plot.setLabel('bottom', 'X', units='mm')
+        self.tof_plot.setLabel('left', 'Y', units='mm')
+        self.tof_plot.setAspectLocked(True)
+        self.tof_image = pg.ImageItem(axisOrder='row-major')
+        self.tof_plot.addItem(self.tof_image)
+        self.tof_histogram = pg.HistogramLUTItem(image=self.tof_image)
+        self.tof_histogram.gradient.loadPreset('viridis')
+        self.cscan_graph.addItem(self.tof_histogram, row=0, col=5)
+        for plot in (self.cscan_plot, self.flaw_plot, self.tof_plot):
+            plot.getAxis('bottom').enableAutoSIPrefix(False)
+            plot.getAxis('left').enableAutoSIPrefix(False)
+            plot.getViewBox().setLimits(xMin=0, yMin=0)
         self.graph_splitter.addWidget(self.cscan_graph)
         self.cscan_graph.hide()
         self.setCentralWidget(self.graph_splitter)
         self.scan_grid = None
         self.flaw_grid = None
+        self.tof_grid = None
         self.scan_settings = None
         self.scan_worker = None
         self.scan_busy = False
+        self.goto_busy = False
+        self.goto_timer = QtCore.QTimer(self)
+        self.goto_timer.timeout.connect(self.poll_goto)
         self.scan_previous_mode = None
         self.scan_previous_window = None
 
         self.scan_panel = ScanSetupPanel(self.probe.port)
+        self.scan_panel.gain.setValue(self.gain)
         self.scan_dock = QtWidgets.QDockWidget('Scan setup', self)
         self.scan_dock.setObjectName('scanSetupDock')
-        self.scan_dock.setWidget(self.scan_panel)
+        scan_scroll = QtWidgets.QScrollArea()
+        scan_scroll.setWidgetResizable(True)
+        scan_scroll.setWidget(self.scan_panel)
+        self.scan_dock.setWidget(scan_scroll)
         self.scan_dock.setAllowedAreas(QtCore.Qt.LeftDockWidgetArea | QtCore.Qt.RightDockWidgetArea)
         self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.scan_dock)
         self.scan_dock.hide()
@@ -166,12 +193,16 @@ class AScanApp(QtWidgets.QMainWindow):
         self.scan_panel.start_requested.connect(self.start_scan)
         self.scan_panel.stop_requested.connect(self.stop_scan)
 
-        self.plot_widget.setXRange(self.start_us, self.end_us)
+        self.plot_widget.setXRange(self.start_us, self.end_us, padding=0)
         self.plot_widget.enableAutoRange(axis='y', enable=False)
+        self.plot_widget.enableAutoRange(axis='x', enable=False)
+        self.plot_widget.getAxis('bottom').enableAutoSIPrefix(False)
+        self.plot_widget.getAxis('left').enableAutoSIPrefix(False)
         self.plot_widget.getViewBox().setMouseEnabled(x=True, y=False)
         self.y_range_initialized = False
         self.manual_y_range = None
-        self.z_steps_per_mm = Z_STEPS_PER_MM
+        self.auto_y_range = None
+        self.mode_y_ranges = {}
         self.plot_widget.showGrid(x=True, y=True, alpha=0.3)
         self.plot_widget.setLabel('bottom', 'Time', units='µs')
         self.plot_widget.setLabel('left', 'Envelope', units='ADC counts')
@@ -204,7 +235,7 @@ class AScanApp(QtWidgets.QMainWindow):
 
         self.cmd_input = OverlayLineEdit(self)
         self.cmd_input.setPlaceholderText(
-            "raw | fft | a-law | home | zero z | pos | yrange | z_steps_mm"
+            "raw | fft | a-law | home | goto 0,0 | zero z | pos | yrange | geometry"
         )
 
         self.cmd_input.setStyleSheet("""
@@ -239,7 +270,8 @@ class AScanApp(QtWidgets.QMainWindow):
             "z": "stop_z",
         }
 
-        self.controller_axes = {"x": 0.0, "y": 0.0, "z": 0.0}
+        self.controller_axes = {"x": 0, "y": 0, "z": 0}
+        self.controller_filter = GamepadFilter()
         self.controller_armed = False
         self.controller = None
         self.controller_enabled = False
@@ -264,12 +296,13 @@ class AScanApp(QtWidgets.QMainWindow):
         self.controller_enabled = True
         self.controller_timer = QtCore.QTimer(self)
         self.controller_timer.timeout.connect(self.poll_controller)
-        self.controller_timer.start(GAMEPAD_POLL_MS)
+        self.controller_timer.start(POLL_MS)
         self.poll_controller()
 
     def release_controller(self):
 
         self.controller_armed = False
+        self.controller_filter.reset()
         if self.controller is not None:
             self.controller.quit()
             self.controller = None
@@ -286,8 +319,9 @@ class AScanApp(QtWidgets.QMainWindow):
         if not self.controller_enabled:
             return
 
-        if self.scan_busy:
+        if self.scan_busy or self.goto_busy:
             self.controller_armed = False
+            self.controller_filter.reset()
             return
 
         try:
@@ -304,30 +338,30 @@ class AScanApp(QtWidgets.QMainWindow):
                     if sdl_controller.is_controller(index):
                         self.controller = sdl_controller.Controller(index)
                         self.controller_armed = False
+                        self.controller_filter.reset()
                         print(f"[Controller] Connected: {sdl_controller.name_forindex(index)}")
                         break
 
             if self.controller is None:
                 return
 
-            x = stick_deflection(self.controller.get_axis(pygame.CONTROLLER_AXIS_LEFTX))
-            y = stick_deflection(self.controller.get_axis(pygame.CONTROLLER_AXIS_LEFTY))
-            z = stick_deflection(self.controller.get_axis(pygame.CONTROLLER_AXIS_RIGHTY))
+            raw_x = self.controller.get_axis(pygame.CONTROLLER_AXIS_LEFTX)
+            raw_y = self.controller.get_axis(pygame.CONTROLLER_AXIS_LEFTY)
+            raw_z = self.controller.get_axis(pygame.CONTROLLER_AXIS_RIGHTY)
 
-
-            if self.cmd_input.isVisible() or not self.isActiveWindow():
+            if self.cmd_input.isVisible() or not self.isActiveWindow() or self.keys_down:
                 self.controller_armed = False
+                self.controller_filter.reset()
                 self.set_controller_axes(0, 0, 0)
                 return
 
-
             if not self.controller_armed:
-                if (x, y, z) == (0, 0, 0):
+                if self.controller_filter.neutral(raw_x, raw_y, raw_z):
                     self.controller_armed = True
                 self.set_controller_axes(0, 0, 0)
                 return
 
-            self.set_controller_axes(x, y, z)
+            self.set_controller_axes(*self.controller_filter.update(raw_x, raw_y, raw_z))
         except (pygame.error, OSError) as exc:
             print(f"[Controller] Read error: {exc}")
             self.release_controller()
@@ -344,7 +378,7 @@ class AScanApp(QtWidgets.QMainWindow):
             return
 
         if key in self.movement_keys:
-            if self.scan_busy:
+            if self.scan_busy or self.goto_busy:
                 event.accept()
                 return
             if event.isAutoRepeat():
@@ -383,11 +417,12 @@ class AScanApp(QtWidgets.QMainWindow):
         self.keys_down.clear()
         self.key_press_order.clear()
         self.controller_armed = False
+        self.controller_filter.reset()
         self.set_controller_axes(0, 0, 0)
         self.send_movement()
 
     def send_movement(self):
-        if self.scan_busy:
+        if self.scan_busy or self.goto_busy:
             return
 
         def latest_down(*keys):
@@ -400,14 +435,14 @@ class AScanApp(QtWidgets.QMainWindow):
 
 
         desired = {
-            "x": ("jog_x plus 2000" if x == QtCore.Qt.Key_A else
-                  "jog_x minus 2000" if x == QtCore.Qt.Key_D else
+            "x": ("jog_mm_x plus 40" if x == QtCore.Qt.Key_A else
+                  "jog_mm_x minus 40" if x == QtCore.Qt.Key_D else
                   gamepad_jog_command("x", self.controller_axes["x"])),
-            "y": ("jog_y minus 2000" if y == QtCore.Qt.Key_W else
-                  "jog_y plus 2000" if y == QtCore.Qt.Key_S else
+            "y": ("jog_mm_y minus 40" if y == QtCore.Qt.Key_W else
+                  "jog_mm_y plus 40" if y == QtCore.Qt.Key_S else
                   gamepad_jog_command("y", self.controller_axes["y"])),
-            "z": ("jog_z up 2000" if z == QtCore.Qt.Key_J else
-                  "jog_z down 2000" if z == QtCore.Qt.Key_K else
+            "z": ("jog_mm_z up 10" if z == QtCore.Qt.Key_J else
+                  "jog_mm_z down 10" if z == QtCore.Qt.Key_K else
                   gamepad_jog_command("z", self.controller_axes["z"])),
         }
 
@@ -423,7 +458,7 @@ class AScanApp(QtWidgets.QMainWindow):
                 if parts[0].startswith("stop_"):
                     self.probe.stop(parts[0][-1])
                 else:
-                    self.probe.jog(parts[0][-1], parts[1], int(parts[2]))
+                    self.probe.jog(parts[0][-1], parts[1], float(parts[2]))
             except (RuntimeError, ValueError, TimeoutError) as error:
                 print(error)
 
@@ -431,9 +466,16 @@ class AScanApp(QtWidgets.QMainWindow):
         super().changeEvent(event)
         if (event.type() == QtCore.QEvent.ActivationChange and
                 not self.isActiveWindow() and hasattr(self, "keys_down")):
+            if self.goto_busy:
+                self.cancel_goto()
             self.stop_manual_motion()
 
     def closeEvent(self, event):
+        if self.goto_busy:
+            self.cancel_goto()
+            if self.goto_busy:
+                event.ignore()
+                return
         if self.scan_worker is not None and self.scan_worker.isRunning():
             self.stop_scan()
             if not self.scan_worker.wait(5000):
@@ -467,7 +509,7 @@ class AScanApp(QtWidgets.QMainWindow):
         )
 
     def refresh_temperature(self):
-        if self.scan_busy:
+        if self.scan_busy or self.goto_busy:
             return
         try:
             degrees_c = self.probe.temperature()
@@ -477,7 +519,7 @@ class AScanApp(QtWidgets.QMainWindow):
             self.temperature_box.clear()
 
     def refresh_clearance(self, reply=None):
-        if self.scan_busy:
+        if self.scan_busy or self.goto_busy:
             return
         try:
             if reply is None:
@@ -488,8 +530,9 @@ class AScanApp(QtWidgets.QMainWindow):
             if fields['homed'].split('/')[-1] != '1':
                 message = 'Bottom clearance: set Z=0'
             else:
-                z_steps = int(fields['z'])
-                clearance_mm = TANK_BOTTOM_AT_Z_ZERO_MM - z_steps / self.z_steps_per_mm
+                if fields.get('units') != 'mm':
+                    raise ValueError('Flash matching metric firmware')
+                clearance_mm = TANK_BOTTOM_AT_Z_ZERO_MM - float(fields['z'])
                 approximate = fields.get('exact', '1/1/1').split('/')[-1] != '1'
                 message = f'Bottom clearance: {"~" if approximate else ""}{clearance_mm:.1f} mm'
             self.clearance_label.setText(message)
@@ -522,10 +565,12 @@ class AScanApp(QtWidgets.QMainWindow):
         mode = aliases.get(mode.lower())
         if mode is None:
             raise ValueError('Mode must be raw, fft, or a-law')
+        if self.mode is not None and not self.scan_busy:
+            self.mode_y_ranges[self.mode] = self.manual_y_range
         self.mode = mode
         self.curve.clear()
-        if self.manual_y_range is None:
-            self.y_range_initialized = False
+        self.manual_y_range = None if self.scan_busy else self.mode_y_ranges.get(mode)
+        self.reset_waveform_range()
         if mode == 'raw':
             label = 'Raw'
             self.plot_widget.setLabel('left', 'ADC value', units='counts')
@@ -538,6 +583,32 @@ class AScanApp(QtWidgets.QMainWindow):
         self.plot_widget.setTitle(label)
         self.statusBar().showMessage(f'Acquisition mode: {mode}')
         print(f'[Acquisition] {label}')
+
+    def reset_waveform_range(self):
+        self.auto_y_range = None
+        self.y_range_initialized = False
+        limits = self.manual_y_range or ((0.0, 1023.0) if self.mode == 'raw' else (0.0, 1.0))
+        self.plot_widget.setYRange(*limits, padding=0)
+        self.plot_widget.enableAutoRange(axis='y', enable=False)
+
+    def plot_waveform(self, samples, sample_rate):
+        if sample_rate <= 0:
+            self.curve.clear()
+            return False
+        times = np.arange(len(samples), dtype=np.float64) * (1e6 / sample_rate)
+        visible = (times >= self.start_us) & (times <= self.end_us)
+        if not np.any(visible):
+            self.curve.clear()
+            return False
+        values = np.asarray(samples)[visible]
+        self.curve.setData(times[visible], values)
+        if self.manual_y_range is None:
+            limits = waveform_y_range(self.mode, values, self.auto_y_range)
+            if limits != self.auto_y_range:
+                self.plot_widget.setYRange(*limits, padding=0)
+                self.auto_y_range = limits
+            self.y_range_initialized = True
+        return True
 
     def handle_command(self):
         text = self.cmd_input.text().strip()
@@ -554,13 +625,23 @@ class AScanApp(QtWidgets.QMainWindow):
             else:
                 self.statusBar().showMessage('Scan active: use Stop scan', 5000)
             return
+        if self.goto_busy:
+            if cmd in ('stop', 'stop_all'):
+                self.cancel_goto()
+            else:
+                self.statusBar().showMessage('Positioning active: use stop_all', 5000)
+            return
         try:
             if cmd in ('raw', 'fft', 'a-law', 'alaw', 'envelope') and len(parts) == 1:
                 self.set_capture_mode(cmd)
 
             elif cmd == 'gain' and len(parts) == 2:
-                self.gain = int(parts[1])
-                self.probe.set_gain(self.gain)
+                gain = int(parts[1])
+                self.probe.set_gain(gain)
+                self.gain = gain
+                self.scan_panel.gain.setValue(gain)
+                if self.manual_y_range is None:
+                    self.reset_waveform_range()
 
             elif cmd in ('pon', 'poff', 'pon/poff') and len(parts) == 2:
                 val = int(parts[1])
@@ -574,30 +655,37 @@ class AScanApp(QtWidgets.QMainWindow):
 
             elif cmd == 'window' and len(parts) == 3:
                 start, end = float(parts[1]), float(parts[2])
-                if start < 0 or end <= start:
+                if not math.isfinite(start) or not math.isfinite(end) or start < 0 or end <= start:
                     raise ValueError('Window must satisfy 0 <= start < end (µs)')
                 self.start_us, self.end_us = start, end
-                self.plot_widget.setXRange(start, end)
+                self.plot_widget.setXRange(start, end, padding=0)
+                if self.manual_y_range is None:
+                    self.reset_waveform_range()
 
             elif cmd == 'yrange' and len(parts) == 3:
                 low, high = float(parts[1]), float(parts[2])
                 if not math.isfinite(low) or not math.isfinite(high) or high <= low:
                     raise ValueError('yrange requires finite MIN and MAX, with MIN < MAX')
                 self.manual_y_range = (low, high)
+                self.mode_y_ranges[self.mode] = self.manual_y_range
                 self.y_range_initialized = True
                 self.plot_widget.setYRange(low, high, padding=0)
 
             elif cmd == 'yrange' and len(parts) == 2 and parts[1].lower() == 'auto':
                 self.manual_y_range = None
-                self.y_range_initialized = False
+                self.mode_y_ranges[self.mode] = None
+                self.reset_waveform_range()
 
-            elif cmd == 'z_steps_mm' and len(parts) == 2:
-                value = float(parts[1])
-                if not math.isfinite(value) or value <= 0:
-                    raise ValueError('z_steps_mm must be a positive finite number')
-                self.z_steps_per_mm = value
-                self.refresh_clearance()
-                self.statusBar().showMessage(f'Z steps/mm: {value:g}', 5000)
+            elif cmd == 'geometry' and len(parts) == 1:
+                reply = self.probe.geometry()
+                print(f'[Gantry] {reply}')
+                self.statusBar().showMessage(reply, 5000)
+
+            elif cmd in ('jog_x', 'jog_y', 'jog_z') and len(parts) == 3:
+                print(self.probe.jog(cmd[-1], parts[1], float(parts[2])))
+
+            elif cmd in ('move_x', 'move_y', 'move_z') and len(parts) == 4:
+                print(self.probe.move(cmd[-1], parts[1], float(parts[2]), float(parts[3])))
 
             elif cmd == 'pulse_rate' and len(parts) == 2:
                 rate = float(parts[1])
@@ -605,6 +693,9 @@ class AScanApp(QtWidgets.QMainWindow):
                     raise ValueError('pulse_rate must be >0 and <=20 Hz')
                 self.timer.setInterval(round(1000.0 / rate))
                 print(f'[Acquisition] Display refresh {rate:g} Hz')
+
+            elif cmd == 'goto' and len(parts) == 3 and parts[1:] == ['0', '0']:
+                self.goto_scan_origin()
 
             elif cmd == 'home' and len(parts) == 1:
                 reply = self.probe.home()
@@ -628,55 +719,150 @@ class AScanApp(QtWidgets.QMainWindow):
                 print(f'[Gantry] {reply}')
                 self.statusBar().showMessage('Motors stopped', 5000)
 
+            elif (cmd == 'i2c' and parts[1:] == ['test']) or (cmd == 'tmc' and len(parts) >= 2) or (cmd == 'temp' and parts[1:] in (['test'], ['stats'])):
+                reply = self.probe.command(' '.join(parts))
+                print(f'[Diagnostic] {reply}')
+                self.statusBar().showMessage(reply, 5000)
+
             elif cmd == 'help' and len(parts) == 1:
                 print('Commands: raw | fft | a-law | gain N | pon N | poff N '
                       '| damp N | window START_US END_US | pulse_rate HZ '
-                      '| home | pos | zero z | z=0 | stop_all '
-                      '| yrange MIN MAX | yrange auto | z_steps_mm N')
+                      '| home | goto 0,0 | pos | zero z | z=0 | stop_all '
+                      '| yrange MIN MAX | yrange auto | geometry | jog_x/y/z DIR MM_S | move_x/y/z DIR MM_S MM | i2c test | tmc status | tmc setup | temp test | temp stats')
             else:
                 raise ValueError(f'Unknown or incomplete command: {text}')
         except (ValueError, RuntimeError, TimeoutError, OSError) as exc:
             print(f'[Command] {exc}')
             self.statusBar().showMessage(str(exc), 5000)
 
+    def goto_scan_origin(self):
+        self.stop_manual_motion()
+        panel = self.scan_panel
+        plan = centered_plan(self.probe.geometry(), panel.width_mm.value(), panel.height_mm.value(),
+                             panel.margin_mm.value(), panel.dx_mm.value(), panel.dy_mm.value())
+        speed = panel.speed_mm_s.value()
+        if speed <= 0:
+            raise ValueError('Scan motor speed must be positive')
+        x, y = plan['home_start_x_mm'], plan['home_start_y_mm']
+        try:
+            reply = self.probe.command(f'goto_xy {x:.3f} {y:.3f} {speed:g}')
+        except (TimeoutError, OSError):
+            try:
+                self.probe.stop('all')
+            except (RuntimeError, ValueError, TimeoutError, OSError):
+                pass
+            raise
+        self.goto_busy = True
+        self.scan_panel.start_button.setEnabled(False)
+        self.goto_timer.start(100)
+        print(f'[Gantry] {reply}')
+        self.statusBar().showMessage('Moving to scan origin (0,0)')
+
+    def finish_goto(self, message):
+        self.goto_timer.stop()
+        self.goto_busy = False
+        self.scan_panel.start_button.setEnabled(True)
+        self.controller_armed = False
+        print(f'[Gantry] {message}')
+        self.statusBar().showMessage(message, 5000)
+
+    def cancel_goto(self):
+        try:
+            self.probe.stop('all')
+        except (RuntimeError, ValueError, TimeoutError, OSError) as exc:
+            print(f'[Gantry] Stop not confirmed: {exc}')
+            self.statusBar().showMessage(f'Stop not confirmed: {exc}', 5000)
+            return
+        self.finish_goto('Positioning stopped')
+
+    def poll_goto(self):
+        try:
+            reply = self.probe.command('goto_status')
+            fields = dict(part.split('=', 1) for part in reply.split() if '=' in part)
+            state = fields.get('goto')
+            if state == 'moving':
+                return
+            if state == 'done':
+                self.finish_goto('At scan origin (0,0)')
+            elif state == 'failed':
+                self.finish_goto(f'Positioning failed: {fields.get("error", "unknown")}')
+            else:
+                raise ValueError(f'Unexpected positioning reply: {reply}')
+        except (RuntimeError, ValueError, TimeoutError, OSError) as exc:
+            print(f'[Gantry] Positioning status failed: {exc}')
+            self.cancel_goto()
+
     def start_scan(self, settings):
+        if self.goto_busy:
+            self.statusBar().showMessage('Positioning active: use stop_all', 5000)
+            return
         if self.scan_busy or (self.scan_worker is not None and self.scan_worker.isRunning()):
             return
         self.stop_manual_motion()
+        try:
+            plan = centered_plan(self.probe.geometry(), settings['width_mm'], settings['height_mm'],
+                                 settings['margin_mm'], settings['dx_mm'], settings['dy_mm'])
+            settings = {**settings, **plan}
+            bscan_start, bscan_end = sample_window(settings['bscan_gate_start_us'], settings['bscan_gate_end_us'], settings['sample_rate'])
+        except (ValueError, RuntimeError, TimeoutError, OSError) as exc:
+            QtWidgets.QMessageBox.warning(self, 'Scan setup', str(exc))
+            return
+        self.bscan_volume = None
         self.scan_busy = True
         self.scan_settings = settings
         self.scan_previous_mode = self.mode
+        self.mode_y_ranges[self.mode] = self.manual_y_range
         self.scan_previous_window = (self.start_us, self.end_us)
         self.timer.stop()
         self.position_timer.stop()
         self.keys_down.clear()
         self.key_press_order.clear()
         self.controller_armed = False
-        self.controller_axes = {"x": 0.0, "y": 0.0, "z": 0.0}
+        self.controller_filter.reset()
+        self.controller_axes = {"x": 0, "y": 0, "z": 0}
         self.scan_panel.set_running(True)
         self.scan_axis_initialized = False
         self.scan_grid = np.full((settings['ny'], settings['nx']), np.nan, dtype=np.float32)
         self.flaw_grid = np.full_like(self.scan_grid, np.nan)
+        self.tof_grid = np.full_like(self.scan_grid, np.nan)
+        tof_levels = (settings['tof_gate_start_us'], settings['tof_gate_end_us'])
+        self.tof_image.setImage(self.tof_grid, autoLevels=False, levels=tof_levels)
+        self.tof_histogram.setLevels(*tof_levels)
         self.cscan_image.setImage(self.scan_grid, autoLevels=False, levels=(0, 1023))
         self.flaw_image.setImage(self.flaw_grid, autoLevels=False, levels=(0, 1023))
-        for image in (self.cscan_image, self.flaw_image):
-            image.setRect(QtCore.QRectF(-0.5, -0.5, settings['nx'], settings['ny']))
+        for image in (self.cscan_image, self.flaw_image, self.tof_image):
+            dx, dy = settings['dx_mm'] or 0.02, settings['dy_mm'] or 0.02
+            image.setRect(QtCore.QRectF(settings['x0_mm'] - dx / 2, settings['y0_mm'] - dy / 2,
+                                         settings['nx'] * dx, settings['ny'] * dy))
         self.cscan_histogram.setLevels(0, 1023)
         self.flaw_histogram.setLevels(0, 1)
-        for plot in (self.cscan_plot, self.flaw_plot):
-            plot.setRange(xRange=(-0.5, settings['nx'] - 0.5),
-                          yRange=(-0.5, settings['ny'] - 0.5), padding=0)
+        for plot in (self.cscan_plot, self.flaw_plot, self.tof_plot):
+            plot.setRange(xRange=(0, max(dx/2, (settings['nx'] - 1)*dx)),
+                          yRange=(0, max(dy/2, (settings['ny'] - 1)*dy)), padding=0, disableAutoRange=True)
         self.cscan_graph.show()
         if self.height() < 700:
-            self.resize(max(1250, self.width()), 750)
-        self.graph_splitter.setSizes([self.height() // 2, self.height() // 2])
+            self.resize(max(1500, self.width()), 750)
+        self.bscan_panel.show()
+        self.graph_splitter.setSizes([self.height() // 3] * 3)
         self.set_capture_mode('raw')
-        self.start_us = max(0, min(settings['gate_start_us'], settings['flaw_gate_start_us']) - 10.0)
-        self.end_us = max(settings['gate_end_us'], settings['flaw_gate_end_us']) + 10.0
-        self.plot_widget.setXRange(self.start_us, self.end_us)
-        self.scan_panel.progress.setText(f'0 / {settings["nx"] * settings["ny"]} points')
+        self.start_us = max(0, min(settings['gate_start_us'], settings['flaw_gate_start_us'], settings['tof_gate_start_us']) - 15.0)
+        self.end_us = min(8000 / 60.0, max(settings['gate_end_us'], settings['flaw_gate_end_us'], settings['tof_gate_end_us']) + 15.0)
+        self.start_us = min(self.start_us, settings['bscan_gate_start_us'])
+        self.end_us = max(self.end_us, settings['bscan_gate_end_us'])
+        self.plot_widget.setXRange(self.start_us, self.end_us, padding=0)
+        self.bscan_start, self.bscan_end = bscan_start, bscan_end
+        self.bscan_current_row = None
+        self.bscan_row_select.setEnabled(False)
+        self.bscan_row_select.blockSignals(True)
+        self.bscan_row_select.setRange(1, settings['ny'])
+        self.bscan_row_select.setValue(1)
+        self.bscan_row_select.blockSignals(False)
+        self.bscan_data = np.full((self.bscan_end - self.bscan_start, settings['nx']), np.nan, dtype=np.float32)
+        self.render_bscan(0, reset_levels=True)
+        self.scan_panel.progress.setText(f'Homing X/Y | Bottom left: {settings["home_start_x_mm"]:.2f}, {settings["home_start_y_mm"]:.2f} mm from home | {settings["nx"] * settings["ny"]} points')
         self.scan_worker = ScanWorker(self.probe, settings, self)
         self.scan_worker.point_received.connect(self.update_scan_point)
+        self.scan_worker.scan_progress.connect(self.scan_panel.progress.setText)
         self.scan_worker.scan_finished.connect(self.finish_scan)
         self.scan_worker.finished.connect(self.scan_thread_ended)
         self.scan_worker.start()
@@ -697,6 +883,8 @@ class AScanApp(QtWidgets.QMainWindow):
             return
         self.scan_grid[row, col] = point['amplitude_pp']
         self.flaw_grid[row, col] = point['flaw_pp']
+        self.tof_grid[row, col] = point['tof_us']
+        self.tof_image.setImage(self.tof_grid, autoLevels=False)
         self.cscan_image.setImage(self.scan_grid, autoLevels=False, levels=(0, 1023))
         flaw_values = self.flaw_grid[np.isfinite(self.flaw_grid)]
         flaw_max = max(1.0, float(np.max(flaw_values))) if flaw_values.size else 1.0
@@ -704,46 +892,80 @@ class AScanApp(QtWidgets.QMainWindow):
         self.flaw_histogram.setLevels(0, flaw_max)
         if not hasattr(self, 'scan_axis_initialized') or not self.scan_axis_initialized:
             settings = self.scan_settings
-            sx = settings['steps_mm_x'] or 1.0
-            sy = settings['steps_mm_y'] or 1.0
-            dx = settings['dx_steps'] / sx if settings['nx'] > 1 else 1.0
-            dy = settings['dy_steps'] / sy if settings['ny'] > 1 else 1.0
-            x0 = point['x_steps'] / sx - col * dx
-            y0 = point['y_steps'] / sy - row * dy
-            for image in (self.cscan_image, self.flaw_image):
+            dx = point['dx_mm'] or 0.02
+            dy = point['dy_mm'] or 0.02
+            x0 = point['x_mm'] - col * dx
+            y0 = point['y_mm'] - row * dy
+            for image in (self.cscan_image, self.flaw_image, self.tof_image):
                 image.setRect(QtCore.QRectF(
                     x0 - dx / 2, y0 - dy / 2, settings['nx'] * dx, settings['ny'] * dy))
-            self.cscan_plot.autoRange()
-            self.flaw_plot.autoRange()
+            for plot in (self.cscan_plot, self.flaw_plot, self.tof_plot):
+                plot.setRange(xRange=(0, max(dx/2, (settings['nx'] - 1)*dx)),
+                              yRange=(0, max(dy/2, (settings['ny'] - 1)*dy)), padding=0, disableAutoRange=True)
             self.scan_axis_initialized = True
-        samples = point['waveform']
-        sample_rate = point['sample_rate_hz']
-        times = np.arange(len(samples), dtype=np.float64) * (1e6 / sample_rate)
-        visible = (times >= self.start_us) & (times <= self.end_us)
-        if np.any(visible):
-            self.curve.setData(times[visible], samples[visible])
-            if not self.y_range_initialized:
-                low = float(np.min(samples[visible]))
-                high = float(np.max(samples[visible]))
-                margin = max(1.0, (high - low) * 0.08)
-                self.plot_widget.setYRange(low - margin, high + margin, padding=0)
-                self.y_range_initialized = True
+        if self.bscan_current_row != row:
+            self.bscan_current_row = row
+            self.bscan_data.fill(np.nan)
+            self.bscan_row_select.blockSignals(True)
+            self.bscan_row_select.setValue(row + 1)
+            self.bscan_row_select.blockSignals(False)
+        self.bscan_data[:, col] = rectify_waveforms(point['waveform'], self.bscan_start, self.bscan_end)
+        self.render_bscan(row)
+        self.plot_waveform(point['waveform'], point['sample_rate_hz'])
         self.plot_widget.setTitle(f'Raw A-scan — point ({col + 1}, {row + 1})')
         done = np.count_nonzero(np.isfinite(self.scan_grid))
         total = self.scan_grid.size
         self.scan_panel.progress.setText(f'{done} / {total} points')
         self.statusBar().showMessage(
-            f'C-scan {done}/{total} | X={point["x_steps"]} Y={point["y_steps"]} | '
+            f'C-scan {done}/{total} | X={point["x_mm"]:.3f} mm Y={point["y_mm"]:.3f} mm | '
             f'Amplitude={point["amplitude_pp"]} Flaw={point["flaw_pp"]} '
-            f'Averages={point["averages"]}')
+            f'TOF={point["tof_us"]:.3f} µs Averages={point["averages"]}')
+
+    def render_bscan(self, row, reset_levels=False):
+        settings = self.scan_settings
+        dx = settings['dx_mm']
+        dt = 1e6 / settings['sample_rate']
+        x0 = settings['x0_mm']
+        y = settings['y0_mm'] + row * settings['dy_mm']
+        if reset_levels:
+            self.bscan_image.setImage(self.bscan_data, autoLevels=False, levels=(0, 1023))
+            self.bscan_histogram.setLevels(0, 1023)
+        else:
+            self.bscan_image.setImage(self.bscan_data, autoLevels=False)
+        self.bscan_image.setRect(QtCore.QRectF(x0 - dx/2, (self.bscan_start - 0.5)*dt,
+                                                settings['nx']*dx, (self.bscan_end-self.bscan_start)*dt))
+        self.bscan_plot.setTitle(f'B-scan — Y = {y:.3f} mm | row {row + 1}/{settings["ny"]}')
+        if reset_levels:
+            self.bscan_plot.setRange(xRange=(0, max(dx/2, (settings['nx']-1)*dx)),
+                                     yRange=(max(0, (self.bscan_start-.5)*dt), (self.bscan_end-.5)*dt), padding=0, disableAutoRange=True)
+
+    def select_bscan_row(self, row_number):
+        if self.scan_busy or self.bscan_volume is None:
+            return
+        row = row_number - 1
+        self.bscan_data = bscan_line(self.bscan_volume[row], np.isfinite(self.scan_grid[row]),
+                                     self.bscan_start, self.bscan_end)
+        self.render_bscan(row)
 
     def finish_scan(self, completed, message):
         self.scan_busy = False
         self.scan_panel.set_running(False)
+        applied_gain = getattr(self.scan_worker, 'applied_gain', None)
+        if applied_gain is not None:
+            self.gain = applied_gain
+            self.scan_panel.gain.setValue(applied_gain)
+        path = getattr(self.scan_worker, 'waveforms_path', None)
+        if path and self.scan_grid is not None and np.any(np.isfinite(self.scan_grid)):
+            try:
+                self.bscan_volume = np.load(path, mmap_mode='r', allow_pickle=False)
+                self.bscan_row_select.setEnabled(True)
+            except (OSError, ValueError) as exc:
+                print(f'[B-scan] {exc}')
         self.scan_panel.progress.setText(('Complete: ' if completed else 'Stopped/error: ') + message)
         self.statusBar().showMessage(message, 10000)
         self.start_us, self.end_us = self.scan_previous_window
-        self.plot_widget.setXRange(self.start_us, self.end_us)
+        self.plot_widget.setXRange(self.start_us, self.end_us, padding=0)
+        self.mode = None  # Do not save the temporary scan range as a manual setting.
         self.set_capture_mode(self.scan_previous_mode)
         self.position_timer.start(350)
         self.timer.start()
@@ -758,7 +980,7 @@ class AScanApp(QtWidgets.QMainWindow):
 
     def update_frame(self):
         """Only request and plot firmware output. No Python-side signal DSP."""
-        if self.scan_busy:
+        if self.scan_busy or self.goto_busy:
             return
         try:
             frame = self.probe.capture(self.mode)
@@ -777,25 +999,9 @@ class AScanApp(QtWidgets.QMainWindow):
         else:
             values = frame.samples()
 
-        time_us = np.arange(values.size, dtype=np.float64) * (1e6 / self.fs)
-        selection = (time_us >= self.start_us) & (time_us <= self.end_us)
-        if not np.any(selection):
-            self.curve.clear()
+        if not self.plot_waveform(values, self.fs):
             self.statusBar().showMessage(
-                f'Window is outside {values.size / self.fs * 1e6:.2f} µs capture',
-                5000,
-            )
-            return
-
-        x = time_us[selection]
-        y = values[selection]
-        self.curve.setData(x, y)
-        if not self.y_range_initialized:
-            low, high = float(np.min(y)), float(np.max(y))
-            padding = max((high - low) * 0.08, 1.0)
-            low = max(0.0, low - padding) if self.mode != 'raw' else low - padding
-            self.plot_widget.setYRange(low, high + padding, padding=0)
-            self.y_range_initialized = True
+                f'Window is outside {values.size / self.fs * 1e6:.2f} µs capture', 5000)
 
 
 

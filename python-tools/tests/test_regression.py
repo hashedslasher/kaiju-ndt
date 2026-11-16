@@ -70,12 +70,12 @@ class DataTests(unittest.TestCase):
                 return b'OK test\r\n'
         probe=Pic0rick.__new__(Pic0rick)
         probe.ser=SerialFake()
-        probe.jog('x','plus',2000)
-        probe.move('z','down',500,200)
+        probe.jog('x','plus',40)
+        probe.move('z','down',2.5,1)
         probe.stop('all')
-        self.assertEqual(probe.ser.commands,[b'jog_x plus 2000\n',b'move_z down 500 200\n',b'stop_all\n'])
+        self.assertEqual(probe.ser.commands,[b'jog_mm_x plus 40\n',b'move_mm_z down 2.5 1\n',b'stop_all\n'])
         with self.assertRaises(ValueError):
-            probe.move('x','plus',2000,5001)
+            probe.move('x','plus',40,-1)
 
 
 if __name__=='__main__':

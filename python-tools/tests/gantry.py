@@ -5,7 +5,7 @@ from . import common
 
 def arguments(parser):
     parser.add_argument('--motor-steps',type=int,default=200)
-    parser.add_argument('--microsteps',type=int,default=16)
+    parser.add_argument('--microsteps',type=int,default=8)
     parser.add_argument('--belt-pitch',type=float,default=2.0)
     parser.add_argument('--teeth',type=int,default=16)
     parser.add_argument('--gear-ratio',type=float,default=1.0)

@@ -11,8 +11,8 @@ static volatile int32_t position_steps[3] = {0, 0, 0};
 static volatile bool position_exact[3] = {false, false, false};
 static volatile bool position_homed[3] = {false, false, false};
 static volatile bool position_homing[3] = {false, false, false};
-static bool limit_y_active;
 static bool limit_y_valid;
+static bool limit_y_active;
 static uint64_t last_limit_y_poll_us;
 
 static const int32_t min_position[3] = {
@@ -185,32 +185,42 @@ static void limit_callback(uint gpio, uint32_t events)
     }
 }
 
+static bool refresh_y_limit(void)
+{
+    uint8_t state;
+    last_limit_y_poll_us = time_us_64();
+    if (!bridge_gpio_read(&state)) {
+        limit_y_valid = false;
+        if (motor_any_active() || motor_is_homing_xy()) motor_stop_all();
+        return false;
+    }
+    limit_y_active = LIMIT_SWITCH_ACTIVE_LOW ?
+        (state & BRIDGE_GPIO_LIMIT_Y) == 0u :
+        (state & BRIDGE_GPIO_LIMIT_Y) != 0u;
+    limit_y_valid = true;
+    if (limit_y_active && motor_stop_if_direction(POSITION_AXIS_Y, Y_DIR_TOWARD_ZERO)) {
+        positioning_set_zero(POSITION_AXIS_Y);
+    }
+    return true;
+}
+
 bool positioning_limit_y_ready(void)
 {
-    return limit_y_valid;
+    return refresh_y_limit();
 }
 
 void positioning_service(void)
 {
     const uint64_t now = time_us_64();
     const uint32_t interval_us = motor_any_active() ? 1000u : 20000u;
-    if (limit_y_valid && !bridge_irq_asserted() &&
-        now - last_limit_y_poll_us < interval_us) return;
-    last_limit_y_poll_us = now;
-    uint8_t state;
-    if (!bridge_gpio_read(&state)) {
+    if (!bridge_ready()) {
         limit_y_valid = false;
-        stop_y(NULL);
+        if (motor_any_active() || motor_is_homing_xy()) motor_stop_all();
         return;
     }
-    limit_y_active = LIMIT_SWITCH_ACTIVE_LOW ?
-        (state & BRIDGE_GPIO_LIMIT_Y) == 0u :
-        (state & BRIDGE_GPIO_LIMIT_Y) != 0u;
-    limit_y_valid = true;
-    if (limit_y_active &&
-        motor_stop_if_direction(POSITION_AXIS_Y, Y_DIR_TOWARD_ZERO)) {
-        positioning_set_zero(POSITION_AXIS_Y);
-    }
+    if (limit_y_valid && now - last_limit_y_poll_us < interval_us &&
+        (!bridge_irq_asserted() || now - last_limit_y_poll_us < 250u)) return;
+    (void)refresh_y_limit();
 }
 
 void positioning_init(void)

@@ -10,6 +10,12 @@ python acq.py
 ```
 
 
-The top toolbar has **Scan setup**. Set scan grid, movement, gate, gain, and CSV/PNG paths, then click **Scan**. The A-scan shows the raw 8000-sample capture at each point; the C-scan grows below it, using the firmware's gated peak-to-peak amplitudes. **Stop scan** aborts the current run and leaves a partial CSV. Completed runs also save the PNG. The scan uses the port already connected by the GUI.
+The top toolbar has **Scan setup**. Home X/Y first and verify that the transducer has clearance over the entire motion path. Enter coupon X width and Y height, margin per side, X/Y spacing (mm), speed (mm/s), amplitude/flaw/TOF/B-scan gates (µs), TOF threshold, averaging, settling, gain, and output paths. The grid is centered on the firmware software travel area. The gantry moves to the bottom-left scan corner before acquiring, then scans left-to-right on the first row and reverses on alternating rows. The scan plots and new centered CSVs use the bottom-left scan point as (0,0), with dimensions in mm. The A-scan, live B-scan and three C-scans appear from top to bottom. The B-scan row selector can inspect any acquired row after completion or a stop. The waveform data file is a raw uint16 NumPy array ordered [row, column, sample]; use the matching CSV to identify valid points, positions and pixel spacing. Data are recorded at 60 MHz with 8000 samples per point. The GUI saves the C-scan PNG, CSV and waveform data; the CLI defaults to centered metric scanning and still supports explicit legacy --nx/--ny grids. See `CENTERED_BSCAN.md` at the project root.
 
-Flash the updated Pico 2 DSP firmware before using the GUI scan. The GUI sends the optional `waveforms` argument after the usual eight scan parameters; the original CLI scan command remains compatible. Firmware ADC sampling stays fixed at 60 MHz regardless of the value entered in the scan setup's sample-rate field (which controls gate index conversion).
+Flash the matching firmware before using metric commands. For details, see the project-root `METRIC_TOF.md`.
+
+Run hardware-free tests from `python-tools`:
+
+```bash
+python -m unittest discover -s tests -t . -p 'test_*.py'
+```

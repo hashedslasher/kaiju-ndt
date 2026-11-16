@@ -11,6 +11,8 @@
 #include "motors.h"
 #include "bridge.h"
 
+#define JOG_DECEL_HZ_PER_STEP 20u
+
 uint32_t step_profile_x[MAX_STEPS];
 uint32_t step_profile_y[MAX_STEPS];
 uint32_t step_profile_z[MAX_STEPS];
@@ -32,6 +34,7 @@ typedef struct {
     bool continuous;
     bool manual_jog;
     bool needs_ramp;
+    bool dma_draining_only;
     uint32_t planned_steps;
     position_axis_t id;
     bool dir_bit;
@@ -55,7 +58,7 @@ static inline bool motor_dir_pin_level(position_axis_t axis, bool dir_bit)
 
 static bool prepare_motor_axis(position_axis_t axis, bool dir_bit)
 {
-    if (!bridge_ready() || !tmc_all_online()) return false;
+    if (!tmc_motion_ready((unsigned)axis)) return false;
     return bridge_set_direction((unsigned)axis, motor_dir_pin_level(axis, dir_bit)) &&
            bridge_set_enable(true);
 }
@@ -115,7 +118,8 @@ static uint32_t axis_executed_steps(const motor_axis_t *axis, bool *exact)
         return axis->planned_steps;
     }
     *exact = false;
-    uint32_t remaining = dma_hw->ch[axis->dma_chan].transfer_count;
+    uint32_t remaining = axis->dma_draining_only ? 0u :
+        dma_hw->ch[axis->dma_chan].transfer_count;
     if (remaining > axis->planned_steps) {
         remaining = axis->planned_steps;
     }
@@ -145,6 +149,7 @@ static void stop_axis_now(motor_axis_t *axis)
     axis->continuous = false;
     axis->manual_jog = false;
     axis->needs_ramp = false;
+    axis->dma_draining_only = false;
     axis->planned_steps = 0u;
     pio_sm_clear_fifos(axis->pio, axis->sm);
     pio_sm_restart(axis->pio, axis->sm);
@@ -251,9 +256,81 @@ static bool start_axis_block(motor_axis_t *axis)
     return true;
 }
 
+static void stop_manual_axis(motor_axis_t *axis)
+{
+    const uint32_t saved = save_and_disable_interrupts();
+    if (!axis->active || !axis->manual_jog) {
+        stop_axis_now(axis);
+        restore_interrupts(saved);
+        return;
+    }
+    if (!axis->continuous) {
+        restore_interrupts(saved);
+        return;
+    }
+    if (!tmc_motion_ready((unsigned)axis->id) ||
+        positioning_limit_blocked(axis->id, axis->dir_bit)) {
+        stop_axis_now(axis);
+        restore_interrupts(saved);
+        return;
+    }
+    axis->continuous = false;
+    axis->needs_ramp = false;
+    if (axis_block_drained(axis)) {
+        restore_interrupts(saved);
+        return;
+    }
+
+    if (dma_channel_is_busy(axis->dma_chan)) {
+        hw_clear_bits(&dma_hw->ch[axis->dma_chan].al1_ctrl,
+                      DMA_CH0_CTRL_TRIG_EN_BITS);
+        dma_channel_abort(axis->dma_chan);
+    }
+    const uintptr_t first = (uintptr_t)axis->profile;
+    const uintptr_t next = (uintptr_t)dma_hw->ch[axis->dma_chan].read_addr;
+    if (next < first || next - first > (uintptr_t)axis->planned_steps * sizeof(uint32_t) ||
+        (next - first) % sizeof(uint32_t)) {
+        axis->planned_steps = 0u;
+        positioning_add_steps(axis->id, axis->dir_bit, 0u, false);
+        stop_axis_now(axis);
+        restore_interrupts(saved);
+        return;
+    }
+    const uint32_t sent = (uint32_t)((next - first) / sizeof(uint32_t));
+    uint32_t tail = 0u;
+    const uint32_t room = axis_steps_available(axis, axis->dir_bit);
+    if (sent && room > sent) {
+        const uint32_t delay = axis->profile[sent - 1u] >> 1;
+        uint32_t freq = clock_get_hz(clk_sys) / (delay + 32u);
+        if (freq > axis->target_freq_hz) freq = axis->target_freq_hz;
+        if (freq > START_FREQ_HZ) {
+            const uint32_t drop = freq - START_FREQ_HZ;
+            tail = (drop + JOG_DECEL_HZ_PER_STEP - 1u) / JOG_DECEL_HZ_PER_STEP;
+            if (tail > MAX_RAMP_STEPS) tail = MAX_RAMP_STEPS;
+            if (tail > room - sent) tail = room - sent;
+            const bool pin_dir = motor_dir_pin_level(axis->id, axis->dir_bit);
+            for (uint32_t i = 0; i < tail; ++i) {
+                const uint32_t hz = freq - (drop * (i + 1u)) / tail;
+                axis->profile[i] = pack_step_word(pin_dir, freq_to_delay(hz));
+            }
+        }
+    }
+    axis->planned_steps = sent + tail;
+    axis->dma_draining_only = tail == 0u;
+    if (positioning_limit_blocked(axis->id, axis->dir_bit)) {
+        axis->planned_steps = sent;
+        axis->dma_draining_only = true;
+        stop_axis_now(axis);
+    } else if (tail) {
+        start_dma(axis->pio, axis->sm, axis->dma_chan, axis->profile, tail);
+    }
+    restore_interrupts(saved);
+}
+
 static bool jog_axis(motor_axis_t *axis, bool dir_bit, uint32_t freq_hz, bool manual)
 {
-    if (freq_hz == 0 || freq_hz > MAX_MOTOR_FREQ_HZ) {
+    if (freq_hz == 0 || freq_hz > MAX_MOTOR_FREQ_HZ ||
+        !tmc_motion_ready((unsigned)axis->id)) {
         return false;
     }
     if (axis->active && axis->continuous &&
@@ -308,7 +385,7 @@ static void home_fail(void)
 bool motor_home_xy(void)
 {
     if (axis_x.active || axis_y.active || axis_z.active ||
-        !positioning_limit_y_ready()) return false;
+        !tmc_motion_ready(POSITION_AXIS_X) || !positioning_limit_y_ready()) return false;
     positioning_cancel_homing(POSITION_AXIS_X);
     positioning_cancel_homing(POSITION_AXIS_Y);
     const bool x_at_zero = positioning_switch_active(POSITION_AXIS_X);
@@ -326,7 +403,7 @@ bool motor_home_xy(void)
     home_state = HOME_RUNNING;
     home_stage_start_ms = to_ms_since_boot(get_absolute_time());
     if ((!x_at_zero && !jog_axis(&axis_x, X_DIR_TOWARD_ZERO, HOME_SPEED_HZ, false)) ||
-        (!y_at_zero && !jog_axis(&axis_y, Y_DIR_TOWARD_ZERO, HOME_SPEED_HZ, false))) {
+        (!y_at_zero && !jog_axis(&axis_y, Y_DIR_TOWARD_ZERO, HOME_Y_SPEED_HZ, false))) {
         home_fail();
     } else if (x_at_zero && y_at_zero) {
         home_state = HOME_COMPLETE;
@@ -352,6 +429,12 @@ const char *motor_home_status(void)
 void motor_service(void)
 {
     positioning_service();
+    if ((axis_x.active && !tmc_motion_ready(POSITION_AXIS_X)) ||
+        (axis_y.active && !tmc_motion_ready(POSITION_AXIS_Y)) ||
+        (axis_z.active && !tmc_motion_ready(POSITION_AXIS_Z))) {
+        motor_stop_all();
+        return;
+    }
     service_axis(&axis_x);
     service_axis(&axis_y);
     service_axis(&axis_z);
@@ -371,19 +454,19 @@ void motor_service(void)
 void stop_x(const char *args)
 {
     (void)args;
-    stop_axis_now(&axis_x);
+    stop_manual_axis(&axis_x);
 }
 
 void stop_y(const char *args)
 {
     (void)args;
-    stop_axis_now(&axis_y);
+    stop_manual_axis(&axis_y);
 }
 
 void stop_z(const char *args)
 {
     (void)args;
-    stop_axis_now(&axis_z);
+    stop_manual_axis(&axis_z);
 }
 
 bool motor_stop_if_direction(position_axis_t id, bool positive)
@@ -489,7 +572,8 @@ static bool finite_move(motor_axis_t *axis, const char *args, bool z_axis)
 {
     bool direction;
     uint32_t frequency = 0, steps = 0;
-    if (!parse_motion(args, true, z_axis, &direction, &frequency, &steps)) {
+    if (!parse_motion(args, true, z_axis, &direction, &frequency, &steps) ||
+        !tmc_motion_ready((unsigned)axis->id)) {
         return false;
     }
     const bool motor_dir = positioning_dir_for_coordinate(axis->id, direction);
@@ -521,11 +605,7 @@ bool move_z(const char *args) { return finite_move(&axis_z, args, true); }
 
 void motor_setup(void)
 {
-    if (bridge_init()) {
-        for (unsigned i = 0; i < TMC_COUNT; ++i) {
-            (void)tmc_configure_8_microsteps((tmc_motor_t)i);
-        }
-    }
+    (void)bridge_setup_motors();
 
     motor_pio_offset = pio_add_program(motor_pio, &stepper_ctrl_program);
 
