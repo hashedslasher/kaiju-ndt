@@ -4899,7 +4899,7 @@
 		(uuid "beda87ef-1d98-41e2-916f-dd560d26d378")
 	)
 	(junction
-		(at 66.04 120.65)
+		(at 101.6 125.73)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "033730dc-f30b-4ea2-9ef7-3bc56c3989c9")
@@ -4935,7 +4935,7 @@
 		(uuid "2367f614-efea-4a49-88d1-d70f10de2d84")
 	)
 	(junction
-		(at 76.2 85.09)
+		(at 111.76 90.17)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "25d25f19-0b9d-445f-98ca-52784e55a813")
@@ -4969,6 +4969,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "3c04c964-c6ea-45e1-8589-5600be198bbc")
+	)
+	(junction
+		(at 44.45 97.79)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "440346a9-db67-408f-89b3-67499d331628")
 	)
 	(junction
 		(at 215.9 40.64)
@@ -5025,7 +5031,7 @@
 		(uuid "6d2604cd-5f66-45dc-8b99-69a2f2f1b554")
 	)
 	(junction
-		(at 60.96 107.95)
+		(at 96.52 113.03)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "7fd6593e-be0e-4daf-91b6-ca3dd4e3df87")
@@ -5127,7 +5133,7 @@
 		(uuid "ca89db30-7b35-4dc2-b007-2554f43bcabe")
 	)
 	(junction
-		(at 88.9 85.09)
+		(at 124.46 90.17)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "cc6fad27-61a5-449b-a03c-512d022a9b97")
@@ -5139,7 +5145,7 @@
 		(uuid "cd0f60c8-9346-4513-9b1b-cdd4a0d962ec")
 	)
 	(junction
-		(at 55.88 118.11)
+		(at 91.44 123.19)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "d9590bdd-1409-4d55-b2b2-f262be6bdae6")
@@ -5161,6 +5167,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "e4fdf7d8-b035-4299-a562-7e962cff3519")
+	)
+	(junction
+		(at 35.56 93.98)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "e5ccfadc-2b17-4100-900b-fe09f7157b41")
 	)
 	(junction
 		(at 90.17 205.74)
@@ -5211,7 +5223,7 @@
 		(uuid "ffd436fa-73ec-453e-af47-878ea4d80e6d")
 	)
 	(no_connect
-		(at 95.25 128.27)
+		(at 130.81 133.35)
 		(uuid "0c127783-5f2c-4577-a7d1-25d1185c7030")
 	)
 	(no_connect
@@ -5259,7 +5271,7 @@
 		(uuid "b5ba8b34-c3e7-41f4-bcf4-6c6b24778c53")
 	)
 	(no_connect
-		(at 74.93 128.27)
+		(at 110.49 133.35)
 		(uuid "b820adfa-007a-4924-82a8-b962f42f5a7d")
 	)
 	(no_connect
@@ -5267,7 +5279,7 @@
 		(uuid "bbe661be-39ae-4b76-8757-5fdeb388e7a8")
 	)
 	(no_connect
-		(at 95.25 125.73)
+		(at 130.81 130.81)
 		(uuid "d083ee0c-5b0e-420a-a8dd-486877e8b514")
 	)
 	(no_connect
@@ -5275,7 +5287,7 @@
 		(uuid "db424270-f92c-436b-9d78-034350732adb")
 	)
 	(no_connect
-		(at 74.93 125.73)
+		(at 110.49 130.81)
 		(uuid "f88c875b-a4b3-412c-8df2-a07a4e9fcf2e")
 	)
 	(no_connect
@@ -5338,7 +5350,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 93.98) (xy 76.2 95.25)
+			(xy 111.76 99.06) (xy 111.76 100.33)
 		)
 		(stroke
 			(width 0)
@@ -5428,7 +5440,7 @@
 	)
 	(wire
 		(pts
-			(xy 55.88 107.95) (xy 66.04 107.95)
+			(xy 91.44 113.03) (xy 101.6 113.03)
 		)
 		(stroke
 			(width 0)
@@ -5458,7 +5470,7 @@
 	)
 	(wire
 		(pts
-			(xy 55.88 109.22) (xy 55.88 107.95)
+			(xy 91.44 114.3) (xy 91.44 113.03)
 		)
 		(stroke
 			(width 0)
@@ -5478,7 +5490,7 @@
 	)
 	(wire
 		(pts
-			(xy 72.39 85.09) (xy 76.2 85.09)
+			(xy 107.95 90.17) (xy 111.76 90.17)
 		)
 		(stroke
 			(width 0)
@@ -5488,7 +5500,7 @@
 	)
 	(wire
 		(pts
-			(xy 88.9 81.28) (xy 88.9 85.09)
+			(xy 124.46 86.36) (xy 124.46 90.17)
 		)
 		(stroke
 			(width 0)
@@ -5518,7 +5530,7 @@
 	)
 	(wire
 		(pts
-			(xy 99.06 104.14) (xy 99.06 85.09)
+			(xy 134.62 109.22) (xy 134.62 90.17)
 		)
 		(stroke
 			(width 0)
@@ -5598,7 +5610,7 @@
 	)
 	(wire
 		(pts
-			(xy 77.47 95.25) (xy 77.47 96.52)
+			(xy 113.03 100.33) (xy 113.03 101.6)
 		)
 		(stroke
 			(width 0)
@@ -5748,7 +5760,7 @@
 	)
 	(wire
 		(pts
-			(xy 87.63 107.95) (xy 87.63 104.14)
+			(xy 123.19 113.03) (xy 123.19 109.22)
 		)
 		(stroke
 			(width 0)
@@ -5775,16 +5787,6 @@
 			(type default)
 		)
 		(uuid "20dc5256-f3e9-48f6-b1d4-1bddbf293ca0")
-	)
-	(wire
-		(pts
-			(xy 38.1 71.12) (xy 49.53 71.12)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "211852fb-a5f8-4d41-a1c7-7aa243dc8e9d")
 	)
 	(wire
 		(pts
@@ -5848,7 +5850,7 @@
 	)
 	(wire
 		(pts
-			(xy 95.25 118.11) (xy 101.6 118.11)
+			(xy 130.81 123.19) (xy 137.16 123.19)
 		)
 		(stroke
 			(width 0)
@@ -5865,6 +5867,16 @@
 			(type default)
 		)
 		(uuid "2938b2ad-2225-460f-9d7b-d44640bf1105")
+	)
+	(wire
+		(pts
+			(xy 44.45 107.95) (xy 35.56 107.95)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "29eb9ee1-ca1e-4a18-9b23-09764297d5b9")
 	)
 	(wire
 		(pts
@@ -5915,6 +5927,26 @@
 			(type default)
 		)
 		(uuid "2ec10519-62e9-4837-93e7-d033b79022d2")
+	)
+	(wire
+		(pts
+			(xy 35.56 93.98) (xy 29.21 93.98)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2ef90dfb-211d-408c-995a-4cdda88c3629")
+	)
+	(wire
+		(pts
+			(xy 57.15 95.25) (xy 57.15 97.79)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2f5dc640-e396-4a33-a57a-12e7aab944ce")
 	)
 	(wire
 		(pts
@@ -5978,7 +6010,7 @@
 	)
 	(wire
 		(pts
-			(xy 66.04 107.95) (xy 66.04 109.22)
+			(xy 101.6 113.03) (xy 101.6 114.3)
 		)
 		(stroke
 			(width 0)
@@ -6038,7 +6070,7 @@
 	)
 	(wire
 		(pts
-			(xy 82.55 139.7) (xy 78.74 139.7)
+			(xy 118.11 144.78) (xy 114.3 144.78)
 		)
 		(stroke
 			(width 0)
@@ -6075,6 +6107,16 @@
 			(type default)
 		)
 		(uuid "38850de3-5cd3-4f01-a7a3-9de26f9159b3")
+	)
+	(wire
+		(pts
+			(xy 41.91 90.17) (xy 41.91 93.98)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "39190625-b52c-4592-8165-56ad0422bd6e")
 	)
 	(wire
 		(pts
@@ -6228,7 +6270,7 @@
 	)
 	(wire
 		(pts
-			(xy 82.55 138.43) (xy 82.55 139.7)
+			(xy 118.11 143.51) (xy 118.11 144.78)
 		)
 		(stroke
 			(width 0)
@@ -6238,7 +6280,7 @@
 	)
 	(wire
 		(pts
-			(xy 87.63 138.43) (xy 87.63 139.7)
+			(xy 123.19 143.51) (xy 123.19 144.78)
 		)
 		(stroke
 			(width 0)
@@ -6278,7 +6320,7 @@
 	)
 	(wire
 		(pts
-			(xy 99.06 85.09) (xy 88.9 85.09)
+			(xy 134.62 90.17) (xy 124.46 90.17)
 		)
 		(stroke
 			(width 0)
@@ -6298,7 +6340,7 @@
 	)
 	(wire
 		(pts
-			(xy 77.47 95.25) (xy 76.2 95.25)
+			(xy 113.03 100.33) (xy 111.76 100.33)
 		)
 		(stroke
 			(width 0)
@@ -6418,7 +6460,7 @@
 	)
 	(wire
 		(pts
-			(xy 82.55 107.95) (xy 72.39 107.95)
+			(xy 118.11 113.03) (xy 107.95 113.03)
 		)
 		(stroke
 			(width 0)
@@ -6448,7 +6490,7 @@
 	)
 	(wire
 		(pts
-			(xy 88.9 85.09) (xy 88.9 86.36)
+			(xy 124.46 90.17) (xy 124.46 91.44)
 		)
 		(stroke
 			(width 0)
@@ -6718,6 +6760,16 @@
 	)
 	(wire
 		(pts
+			(xy 44.45 106.68) (xy 44.45 107.95)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "73b4b28e-7c99-45d7-a1d6-973a18b68882")
+	)
+	(wire
+		(pts
 			(xy 477.52 143.51) (xy 495.3 143.51)
 		)
 		(stroke
@@ -6768,7 +6820,7 @@
 	)
 	(wire
 		(pts
-			(xy 60.96 106.68) (xy 60.96 107.95)
+			(xy 96.52 111.76) (xy 96.52 113.03)
 		)
 		(stroke
 			(width 0)
@@ -6798,7 +6850,7 @@
 	)
 	(wire
 		(pts
-			(xy 55.88 116.84) (xy 55.88 118.11)
+			(xy 91.44 121.92) (xy 91.44 123.19)
 		)
 		(stroke
 			(width 0)
@@ -6908,7 +6960,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 85.09) (xy 76.2 86.36)
+			(xy 111.76 90.17) (xy 111.76 91.44)
 		)
 		(stroke
 			(width 0)
@@ -6968,7 +7020,7 @@
 	)
 	(wire
 		(pts
-			(xy 88.9 93.98) (xy 88.9 96.52)
+			(xy 124.46 99.06) (xy 124.46 101.6)
 		)
 		(stroke
 			(width 0)
@@ -7038,7 +7090,17 @@
 	)
 	(wire
 		(pts
-			(xy 87.63 139.7) (xy 91.44 139.7)
+			(xy 46.99 95.25) (xy 57.15 95.25)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9346d740-2865-4820-9a75-5250ba917cd9")
+	)
+	(wire
+		(pts
+			(xy 123.19 144.78) (xy 127 144.78)
 		)
 		(stroke
 			(width 0)
@@ -7158,6 +7220,16 @@
 	)
 	(wire
 		(pts
+			(xy 33.02 97.79) (xy 44.45 97.79)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9bd4293d-8019-4603-a384-90d7a067584b")
+	)
+	(wire
+		(pts
 			(xy 281.94 275.59) (xy 281.94 260.35)
 		)
 		(stroke
@@ -7195,6 +7267,16 @@
 			(type default)
 		)
 		(uuid "9f2d3934-1057-435c-8b9b-d027b2cbff89")
+	)
+	(wire
+		(pts
+			(xy 44.45 90.17) (xy 44.45 97.79)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9f643e9e-4f97-4904-a7ea-c2dbe3c3b5f5")
 	)
 	(wire
 		(pts
@@ -7338,6 +7420,16 @@
 	)
 	(wire
 		(pts
+			(xy 44.45 97.79) (xy 44.45 99.06)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a6352147-b6b5-4566-a662-26090b1489af")
+	)
+	(wire
+		(pts
 			(xy 270.51 267.97) (xy 284.48 267.97)
 		)
 		(stroke
@@ -7355,6 +7447,16 @@
 			(type default)
 		)
 		(uuid "a7910322-236c-4632-98dc-97cd450ce08c")
+	)
+	(wire
+		(pts
+			(xy 35.56 107.95) (xy 35.56 93.98)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a82c0f57-c439-4e88-93ac-fd92906a7f06")
 	)
 	(wire
 		(pts
@@ -7518,6 +7620,16 @@
 	)
 	(wire
 		(pts
+			(xy 41.91 93.98) (xy 35.56 93.98)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b3408462-2ece-41ba-806a-a240f2c1d16a")
+	)
+	(wire
+		(pts
 			(xy 43.18 38.1) (xy 74.93 38.1)
 		)
 		(stroke
@@ -7578,7 +7690,7 @@
 	)
 	(wire
 		(pts
-			(xy 87.63 104.14) (xy 99.06 104.14)
+			(xy 123.19 109.22) (xy 134.62 109.22)
 		)
 		(stroke
 			(width 0)
@@ -7598,7 +7710,7 @@
 	)
 	(wire
 		(pts
-			(xy 45.72 118.11) (xy 74.93 118.11)
+			(xy 81.28 123.19) (xy 110.49 123.19)
 		)
 		(stroke
 			(width 0)
@@ -7638,7 +7750,7 @@
 	)
 	(wire
 		(pts
-			(xy 45.72 120.65) (xy 74.93 120.65)
+			(xy 81.28 125.73) (xy 110.49 125.73)
 		)
 		(stroke
 			(width 0)
@@ -7758,7 +7870,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 81.28) (xy 76.2 85.09)
+			(xy 111.76 86.36) (xy 111.76 90.17)
 		)
 		(stroke
 			(width 0)
@@ -7968,6 +8080,16 @@
 	)
 	(wire
 		(pts
+			(xy 46.99 90.17) (xy 46.99 95.25)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d40a9724-32ae-4635-afbc-b8bbb1fee2f4")
+	)
+	(wire
+		(pts
 			(xy 482.6 259.08) (xy 482.6 264.16)
 		)
 		(stroke
@@ -8108,7 +8230,7 @@
 	)
 	(wire
 		(pts
-			(xy 91.44 139.7) (xy 91.44 140.97)
+			(xy 127 144.78) (xy 127 146.05)
 		)
 		(stroke
 			(width 0)
@@ -8118,7 +8240,7 @@
 	)
 	(wire
 		(pts
-			(xy 95.25 120.65) (xy 101.6 120.65)
+			(xy 130.81 125.73) (xy 137.16 125.73)
 		)
 		(stroke
 			(width 0)
@@ -8128,7 +8250,7 @@
 	)
 	(wire
 		(pts
-			(xy 72.39 107.95) (xy 72.39 85.09)
+			(xy 107.95 113.03) (xy 107.95 90.17)
 		)
 		(stroke
 			(width 0)
@@ -8145,6 +8267,16 @@
 			(type default)
 		)
 		(uuid "e6b40de6-0cb8-4a61-9207-9df1414d23df")
+	)
+	(wire
+		(pts
+			(xy 29.21 93.98) (xy 29.21 83.82)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e72ca673-cc7e-49a5-8f00-4f42b36deca5")
 	)
 	(wire
 		(pts
@@ -8278,7 +8410,7 @@
 	)
 	(wire
 		(pts
-			(xy 66.04 116.84) (xy 66.04 120.65)
+			(xy 101.6 121.92) (xy 101.6 125.73)
 		)
 		(stroke
 			(width 0)
@@ -8398,7 +8530,7 @@
 	)
 	(wire
 		(pts
-			(xy 78.74 139.7) (xy 78.74 140.97)
+			(xy 114.3 144.78) (xy 114.3 146.05)
 		)
 		(stroke
 			(width 0)
@@ -8546,7 +8678,7 @@
 	)
 	(global_label "Pico_GPIO21"
 		(shape input)
-		(at 45.72 118.11 180)
+		(at 81.28 123.19 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -8556,7 +8688,7 @@
 		)
 		(uuid "090e93b5-8438-4832-9256-97be7d646d05")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 32.2566 118.11 0)
+			(at 67.8166 123.19 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8714,7 +8846,7 @@
 	)
 	(global_label "Pico_GPIO28"
 		(shape input)
-		(at 45.72 120.65 180)
+		(at 81.28 125.73 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -8724,7 +8856,7 @@
 		)
 		(uuid "17188be9-e775-446f-b8da-e509c51ae247")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 32.2566 120.65 0)
+			(at 67.8166 125.73 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8834,7 +8966,7 @@
 	)
 	(global_label "Pico_GPIO20"
 		(shape input)
-		(at 38.1 71.12 180)
+		(at 33.02 97.79 180)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -8844,7 +8976,7 @@
 		)
 		(uuid "3475b921-37c8-480a-b4b8-402ff69c4269")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 24.6366 71.12 0)
+			(at 19.5566 97.79 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9576,30 +9708,6 @@
 			)
 		)
 	)
-	(global_label "DQ"
-		(shape input)
-		(at 49.53 71.12 0)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.143 1.143)
-			)
-			(justify left)
-		)
-		(uuid "bdd0f24e-68e8-4eae-9c8a-b42732b2c216")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 54.5569 71.12 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-	)
 	(global_label "EN"
 		(shape input)
 		(at 228.6 125.73 180)
@@ -9698,7 +9806,7 @@
 	)
 	(global_label "SCL"
 		(shape output)
-		(at 101.6 118.11 0)
+		(at 137.16 123.19 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -9708,7 +9816,7 @@
 		)
 		(uuid "d446d4b9-9bc8-4857-9e95-863338e115b6")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 107.4434 118.11 0)
+			(at 143.0034 123.19 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9770,7 +9878,7 @@
 	)
 	(global_label "SDA"
 		(shape output)
-		(at 101.6 120.65 0)
+		(at 137.16 125.73 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -9780,7 +9888,7 @@
 		)
 		(uuid "d8841789-7125-4be7-9ee9-51b02df09e93")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 107.4978 120.65 0)
+			(at 143.0578 125.73 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10088,7 +10196,7 @@
 			(uuid "c6f19e68-60fd-4c32-aae1-f69414467eef")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "J10")
 					(unit 1)
@@ -10166,7 +10274,7 @@
 			(uuid "684de518-ded2-414b-80d3-b02583bb455f")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR064")
 					(unit 1)
@@ -10248,7 +10356,7 @@
 			(uuid "38155b23-67b9-4e54-b0b8-183a6a8643a7")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "J8")
 					(unit 1)
@@ -10258,7 +10366,7 @@
 	)
 	(symbol
 		(lib_id "power:+3V3")
-		(at 60.96 106.68 0)
+		(at 96.52 111.76 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -10269,7 +10377,7 @@
 		(fields_autoplaced yes)
 		(uuid "035e6035-7778-4054-9e82-a6bbc2b47255")
 		(property "Reference" "#PWR025"
-			(at 60.96 110.49 0)
+			(at 96.52 115.57 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10280,7 +10388,7 @@
 			)
 		)
 		(property "Value" "+3V3_PICO"
-			(at 60.96 101.6 0)
+			(at 96.52 106.68 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10290,7 +10398,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 60.96 106.68 0)
+			(at 96.52 111.76 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10301,7 +10409,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 60.96 106.68 0)
+			(at 96.52 111.76 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10312,7 +10420,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+3V3\""
-			(at 60.96 106.68 0)
+			(at 96.52 111.76 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10326,7 +10434,7 @@
 			(uuid "d97c9c4b-69dd-49e6-b33d-e4880e953968")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR025")
 					(unit 1)
@@ -10404,7 +10512,7 @@
 			(uuid "5efade55-6271-4084-a16a-fc02b512dfdd")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR052")
 					(unit 1)
@@ -10486,7 +10594,7 @@
 			(uuid "178e5245-ba06-4bc8-aee1-4ce8d35a0f8e")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "R12")
 					(unit 1)
@@ -10496,7 +10604,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 88.9 96.52 0)
+		(at 124.46 101.6 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -10507,7 +10615,7 @@
 		(fields_autoplaced yes)
 		(uuid "0be53279-f12d-4bd2-af14-41819b501c01")
 		(property "Reference" "#PWR035"
-			(at 88.9 102.87 0)
+			(at 124.46 107.95 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10518,7 +10626,7 @@
 			)
 		)
 		(property "Value" "TRS_GND"
-			(at 88.9 101.6 0)
+			(at 124.46 106.68 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10528,7 +10636,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 88.9 96.52 0)
+			(at 124.46 101.6 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10539,7 +10647,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 88.9 96.52 0)
+			(at 124.46 101.6 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10550,7 +10658,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 88.9 96.52 0)
+			(at 124.46 101.6 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10564,7 +10672,7 @@
 			(uuid "ca5569b7-8bf8-4e4a-a809-cb0de36ed90f")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR035")
 					(unit 1)
@@ -10646,7 +10754,7 @@
 			(uuid "df711912-11f8-45f7-a50d-2201cb99db72")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "C11")
 					(unit 1)
@@ -10728,7 +10836,7 @@
 			(uuid "b0601e83-8d74-4e02-9269-b95c06c0408f")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "C17")
 					(unit 1)
@@ -10810,7 +10918,7 @@
 			(uuid "b9b1da99-756c-4ddb-8997-d34feaf81f1e")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "J1")
 					(unit 1)
@@ -10820,7 +10928,7 @@
 	)
 	(symbol
 		(lib_id "Isolator:ISO1642DWR")
-		(at 85.09 123.19 0)
+		(at 120.65 128.27 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -10831,7 +10939,7 @@
 		(fields_autoplaced yes)
 		(uuid "15981c5f-d03c-4afb-bcad-9d18e5b2982c")
 		(property "Reference" "U2"
-			(at 89.7733 105.41 0)
+			(at 125.3333 110.49 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10842,7 +10950,7 @@
 			)
 		)
 		(property "Value" "ISO1642DWR"
-			(at 89.7733 107.95 0)
+			(at 125.3333 113.03 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10853,7 +10961,7 @@
 			)
 		)
 		(property "Footprint" "Package_SO:SOIC-16W_7.5x10.3mm_P1.27mm"
-			(at 82.55 151.13 0)
+			(at 118.11 156.21 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10864,7 +10972,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/iso1642.pdf"
-			(at 82.55 153.67 0)
+			(at 118.11 158.75 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10875,7 +10983,7 @@
 			)
 		)
 		(property "Description" "I2C Isolator with Bidirectional Clock and Data and two 1/1 Auxiliary GPIOs, SOIC-16"
-			(at 85.09 123.19 0)
+			(at 120.65 128.27 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10934,7 +11042,7 @@
 			(uuid "91eb32b8-2cd0-402d-bb66-356b181b66fb")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "U2")
 					(unit 1)
@@ -11016,7 +11124,7 @@
 			(uuid "e47c1ef9-7727-4c39-b106-5b2c9f1f6ebc")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "R19")
 					(unit 1)
@@ -11094,7 +11202,7 @@
 			(uuid "8d18a1fb-00c6-4121-be05-b5861894ff60")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR049")
 					(unit 1)
@@ -11176,7 +11284,7 @@
 			(uuid "d485d1ec-1b70-4977-baf0-350f1e1ba83e")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "R4")
 					(unit 1)
@@ -11254,7 +11362,7 @@
 			(uuid "a00e3bbf-22ec-4575-b712-710ed121f2a2")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR057")
 					(unit 1)
@@ -11332,7 +11440,7 @@
 			(uuid "ca2c70dc-a8c1-4042-b7f8-a9e24f6eeadc")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR017")
 					(unit 1)
@@ -11410,7 +11518,7 @@
 			(uuid "d8957491-071f-4046-a0e9-6b89d10037be")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR042")
 					(unit 1)
@@ -11492,7 +11600,7 @@
 			(uuid "96fdd1d1-6f05-4e13-9f7a-cd303848b5a0")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "C5")
 					(unit 1)
@@ -11570,7 +11678,7 @@
 			(uuid "f34d4aca-f2da-4d6c-8bf3-af9a1530e744")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR026")
 					(unit 1)
@@ -11648,7 +11756,7 @@
 			(uuid "1aa6f9f4-3af8-4d48-9a5f-a6986d6766c9")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR047")
 					(unit 1)
@@ -11726,7 +11834,7 @@
 			(uuid "43f6e503-d157-450c-a913-e85d285fe5b1")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR032")
 					(unit 1)
@@ -11804,7 +11912,7 @@
 			(uuid "8e0e18ea-d708-4bfd-b367-aef0dbcb313a")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR027")
 					(unit 1)
@@ -11882,7 +11990,7 @@
 			(uuid "bd3f6ec5-6ef9-47e4-b05c-ce9623a458bf")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR041")
 					(unit 1)
@@ -11960,7 +12068,7 @@
 			(uuid "269d22a2-96ee-40b8-97f5-d8ecd1921fc0")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR02")
 					(unit 1)
@@ -12038,7 +12146,7 @@
 			(uuid "e6cc3aed-1376-42fd-8672-14328f046de2")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR043")
 					(unit 1)
@@ -12120,7 +12228,7 @@
 			(uuid "a0880d66-7489-4bc1-a8a2-5124468ba48c")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "C13")
 					(unit 1)
@@ -12202,7 +12310,7 @@
 			(uuid "b9ba614e-682d-4807-ae3c-c0a15fada69c")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "R5")
 					(unit 1)
@@ -12280,7 +12388,7 @@
 			(uuid "1f786926-31f7-4596-ad92-4f33ebdb49d3")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR011")
 					(unit 1)
@@ -12362,7 +12470,7 @@
 			(uuid "496bcfe5-e9ef-493a-b65d-f144ab6c1ea1")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "C2")
 					(unit 1)
@@ -12444,7 +12552,7 @@
 			(uuid "f23d13e7-cd73-4624-9593-65f887bb8b41")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "C3")
 					(unit 1)
@@ -12566,7 +12674,7 @@
 			(uuid "4549ac71-9cfd-49d5-a248-a5b4650c564a")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "U7")
 					(unit 1)
@@ -12646,7 +12754,7 @@
 			(uuid "fc8046e8-def2-4281-bf0c-93e8890fd4ca")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "R13")
 					(unit 1)
@@ -12724,7 +12832,7 @@
 			(uuid "5b2ba1cb-61b3-43b5-83c4-fc87a3cc6763")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR019")
 					(unit 1)
@@ -12806,7 +12914,7 @@
 			(uuid "ba80c337-3580-4e38-a7ec-c693583ff957")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "C14")
 					(unit 1)
@@ -12884,7 +12992,7 @@
 			(uuid "32b32572-9e28-4d12-9aa9-4087d06d39ee")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR045")
 					(unit 1)
@@ -12962,7 +13070,7 @@
 			(uuid "5b00dde5-cbc1-4564-ba1a-f3d22b95413d")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR021")
 					(unit 1)
@@ -12972,7 +13080,7 @@
 	)
 	(symbol
 		(lib_id "Device:R")
-		(at 55.88 113.03 0)
+		(at 91.44 118.11 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -12983,7 +13091,7 @@
 		(fields_autoplaced yes)
 		(uuid "511fd4b5-2c89-44c3-a270-eb1b7a4cf436")
 		(property "Reference" "R1"
-			(at 58.42 111.7599 0)
+			(at 93.98 116.8399 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12994,7 +13102,7 @@
 			)
 		)
 		(property "Value" "4.7k"
-			(at 58.42 114.2999 0)
+			(at 93.98 119.3799 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13005,7 +13113,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 54.102 113.03 90)
+			(at 89.662 118.11 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13016,7 +13124,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 55.88 113.03 0)
+			(at 91.44 118.11 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13027,7 +13135,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 55.88 113.03 0)
+			(at 91.44 118.11 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13044,7 +13152,7 @@
 			(uuid "6264ee92-f8d5-4f06-a4cf-3cf927f51a9c")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "R1")
 					(unit 1)
@@ -13128,7 +13236,7 @@
 			(uuid "f90a541c-e661-4fb4-b988-34d4ab477bf1")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "U4")
 					(unit 1)
@@ -13206,9 +13314,87 @@
 			(uuid "2b21f225-0f75-4894-90dd-7a50fca39e56")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR033")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+3V3")
+		(at 29.21 83.82 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "58cf67b1-29d4-4a18-97b9-bc6dc2bb5855")
+		(property "Reference" "#PWR063"
+			(at 29.21 87.63 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+3V3_PICO"
+			(at 29.21 78.74 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.143 1.143)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 29.21 83.82 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 29.21 83.82 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 29.21 83.82 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "cda38bd1-f9a6-49a8-97fe-a5a39b533017")
+		)
+		(instances
+			(project "Kaiju"
+				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
+					(reference "#PWR063")
 					(unit 1)
 				)
 			)
@@ -13284,7 +13470,7 @@
 			(uuid "862918f2-01a7-4c06-8357-b29e73440758")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR061")
 					(unit 1)
@@ -13406,7 +13592,7 @@
 			(uuid "e7c00385-9770-4e64-9a9a-ea05ccc68c9c")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "U10")
 					(unit 1)
@@ -13484,7 +13670,7 @@
 			(uuid "292edc17-eeb4-4e63-a3bd-02897b735554")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR046")
 					(unit 1)
@@ -13566,7 +13752,7 @@
 			(uuid "7fc185c2-68fc-4645-a8c5-52b68ae042f4")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "C16")
 					(unit 1)
@@ -13644,7 +13830,7 @@
 			(uuid "e9dc57c4-14be-4220-b14c-5498105139a1")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR022")
 					(unit 1)
@@ -13722,7 +13908,7 @@
 			(uuid "97523482-6d71-4b90-a7c7-c05844109d85")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR053")
 					(unit 1)
@@ -13844,7 +14030,7 @@
 			(uuid "ea491674-7266-4cd7-adbb-d9072a7db956")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "U8")
 					(unit 1)
@@ -13922,7 +14108,7 @@
 			(uuid "610a1ad5-806d-4492-835f-39c4e6dee62d")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR040")
 					(unit 1)
@@ -13932,7 +14118,7 @@
 	)
 	(symbol
 		(lib_id "power:+3V3")
-		(at 76.2 81.28 0)
+		(at 111.76 86.36 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -13943,7 +14129,7 @@
 		(fields_autoplaced yes)
 		(uuid "6cdac665-0fa4-4b5c-9184-52c2ba2b3f77")
 		(property "Reference" "#PWR07"
-			(at 76.2 85.09 0)
+			(at 111.76 90.17 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13954,7 +14140,7 @@
 			)
 		)
 		(property "Value" "+3V3_PICO"
-			(at 76.2 76.2 0)
+			(at 111.76 81.28 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13964,7 +14150,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 76.2 81.28 0)
+			(at 111.76 86.36 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13975,7 +14161,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 76.2 81.28 0)
+			(at 111.76 86.36 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13986,7 +14172,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+3V3\""
-			(at 76.2 81.28 0)
+			(at 111.76 86.36 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14000,7 +14186,7 @@
 			(uuid "0cc2d5bd-9d92-4724-9cae-e4eae35f3ff1")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR07")
 					(unit 1)
@@ -14082,7 +14268,7 @@
 			(uuid "ef7fca63-79ef-4047-b025-c8be501a3436")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "C15")
 					(unit 1)
@@ -14160,7 +14346,7 @@
 			(uuid "86d5dfe7-efa6-464b-b521-9cfe6c22968c")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR010")
 					(unit 1)
@@ -14242,7 +14428,7 @@
 			(uuid "02d33123-1246-4ae1-8c24-497e97a7f89c")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "J2")
 					(unit 1)
@@ -14252,7 +14438,7 @@
 	)
 	(symbol
 		(lib_id "Device:C")
-		(at 88.9 90.17 0)
+		(at 124.46 95.25 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -14263,7 +14449,7 @@
 		(fields_autoplaced yes)
 		(uuid "73cac2cf-4d3b-4382-963d-0b04edb9847b")
 		(property "Reference" "C9"
-			(at 92.71 88.8999 0)
+			(at 128.27 93.9799 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14274,7 +14460,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 92.71 91.4399 0)
+			(at 128.27 96.5199 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14285,7 +14471,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
-			(at 89.8652 93.98 0)
+			(at 125.4252 99.06 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14296,7 +14482,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 88.9 90.17 0)
+			(at 124.46 95.25 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14307,7 +14493,7 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor"
-			(at 88.9 90.17 0)
+			(at 124.46 95.25 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14324,7 +14510,7 @@
 			(uuid "3fb6343a-3776-4ef4-9aa1-ef1badce1fad")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "C9")
 					(unit 1)
@@ -14406,7 +14592,7 @@
 			(uuid "f0b60d1d-7dc2-4c7a-96d1-888d934e0509")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "C12")
 					(unit 1)
@@ -14486,7 +14672,7 @@
 			(uuid "2ad69ee5-8e02-4853-aee8-d651055683c8")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "Y1")
 					(unit 1)
@@ -14564,7 +14750,7 @@
 			(uuid "dade738c-1fde-4be9-85f8-ea2351553d89")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR06")
 					(unit 1)
@@ -14642,7 +14828,7 @@
 			(uuid "85d36a8f-d832-43c8-80e6-83e5c7f7894e")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR066")
 					(unit 1)
@@ -14720,7 +14906,7 @@
 			(uuid "44f9b7f1-13a0-48b8-8ae6-904c6bc77daa")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR031")
 					(unit 1)
@@ -14798,7 +14984,7 @@
 			(uuid "6a0651f9-c621-4112-be00-76872c00303f")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR039")
 					(unit 1)
@@ -14880,7 +15066,7 @@
 			(uuid "72f95a0a-1235-4fb0-bc7e-b759b68c3226")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "R6")
 					(unit 1)
@@ -14958,7 +15144,7 @@
 			(uuid "919317a9-0123-450a-84d9-a8ec1670e6c9")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR034")
 					(unit 1)
@@ -15036,7 +15222,7 @@
 			(uuid "d1dcb9fd-e9f2-4196-84e6-20b7400bba99")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR051")
 					(unit 1)
@@ -15046,7 +15232,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 77.47 96.52 0)
+		(at 113.03 101.6 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -15057,7 +15243,7 @@
 		(fields_autoplaced yes)
 		(uuid "98855c08-01b6-4201-bd27-69cf81e316e7")
 		(property "Reference" "#PWR023"
-			(at 77.47 102.87 0)
+			(at 113.03 107.95 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15068,7 +15254,7 @@
 			)
 		)
 		(property "Value" "GND_PICO"
-			(at 77.47 101.6 0)
+			(at 113.03 106.68 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15078,7 +15264,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 77.47 96.52 0)
+			(at 113.03 101.6 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15089,7 +15275,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 77.47 96.52 0)
+			(at 113.03 101.6 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15100,7 +15286,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 77.47 96.52 0)
+			(at 113.03 101.6 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15114,7 +15300,7 @@
 			(uuid "4aae01e6-75dd-4736-be3a-22a0bcd86c52")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR023")
 					(unit 1)
@@ -15192,7 +15378,7 @@
 			(uuid "e3680e22-f85e-4422-8a8f-3d91e22ea053")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR068")
 					(unit 1)
@@ -15270,7 +15456,7 @@
 			(uuid "980ad468-71b9-4e7d-9a71-48f7a6d64fa4")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR028")
 					(unit 1)
@@ -15358,9 +15544,91 @@
 			(uuid "1b46840e-af29-4d76-84e5-9be4fedbb1cd")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "J4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R")
+		(at 44.45 102.87 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a13f9459-3e21-4882-ab20-380fc75db880")
+		(property "Reference" "R7"
+			(at 46.99 101.5999 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "4.7k"
+			(at 46.99 104.1399 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 42.672 102.87 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 44.45 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 44.45 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "0e1258ee-c06c-4fa6-b029-38d6a94d8cfd")
+		)
+		(pin "1"
+			(uuid "dfde5bf4-5b41-48a1-8dd4-c15010053e77")
+		)
+		(instances
+			(project "Kaiju"
+				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
+					(reference "R7")
 					(unit 1)
 				)
 			)
@@ -15440,7 +15708,7 @@
 			(uuid "541e66cd-eeb9-4ea1-b171-983d5bc29025")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "R22")
 					(unit 1)
@@ -15600,7 +15868,7 @@
 			(uuid "f6b91af5-7534-4b05-8c2e-c967a407f9e1")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "U5")
 					(unit 1)
@@ -15678,7 +15946,7 @@
 			(uuid "b14491f0-08c2-497a-ad1c-2ff5cc7144a3")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR013")
 					(unit 1)
@@ -15760,7 +16028,7 @@
 			(uuid "cbecfe5d-9fd2-4696-947b-af2a86b496bd")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "R3")
 					(unit 1)
@@ -15838,7 +16106,7 @@
 			(uuid "b8b63c01-53ca-4909-97cb-834cef206c29")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR060")
 					(unit 1)
@@ -15920,7 +16188,7 @@
 			(uuid "856b6d80-16b2-46c8-aeda-c81d7712b840")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "C18")
 					(unit 1)
@@ -16002,7 +16270,7 @@
 			(uuid "6f7f645b-fa34-4452-99c4-277b1277ab2c")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "J6")
 					(unit 1)
@@ -16084,7 +16352,7 @@
 			(uuid "339af50f-38de-41ba-97dd-3131554cf2b1")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "C1")
 					(unit 1)
@@ -16190,7 +16458,7 @@
 			(uuid "e83d6dd8-4171-4e0d-b25a-7744f12680eb")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "J14")
 					(unit 1)
@@ -16272,7 +16540,7 @@
 			(uuid "ad7c3ad7-6cc9-4550-b220-3c897b429086")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "R15")
 					(unit 1)
@@ -16350,7 +16618,7 @@
 			(uuid "9f52ec86-ee42-43d9-a9eb-24f311b276f1")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR038")
 					(unit 1)
@@ -16428,7 +16696,7 @@
 			(uuid "6a627f90-c772-42ab-a312-2f402537120c")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR012")
 					(unit 1)
@@ -16506,7 +16774,7 @@
 			(uuid "dd496d36-da9a-4876-9945-4be6c4ba11d0")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR03")
 					(unit 1)
@@ -16588,9 +16856,92 @@
 			(uuid "d95b4ddc-06e1-46fb-947c-25cf0fd4d93f")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "C6")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:Conn_01x03_Socket")
+		(at 44.45 85.09 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "b696678a-bd23-4102-baf1-4b89e67ad46f")
+		(property "Reference" "J13"
+			(at 44.45 80.01 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "Conn_01x03_Socket"
+			(at 44.45 82.55 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 44.45 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 44.45 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Generic connector, single row, 01x03, script generated"
+			(at 44.45 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "3"
+			(uuid "a08fbc24-00e5-48a2-8d39-51b728ea0f1b")
+		)
+		(pin "1"
+			(uuid "62fc8cbf-a956-4210-b44b-e24e3960fbda")
+		)
+		(pin "2"
+			(uuid "e4d370a6-1ed7-4507-98c1-894aec9b43a4")
+		)
+		(instances
+			(project "Kaiju"
+				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
+					(reference "J13")
 					(unit 1)
 				)
 			)
@@ -16711,7 +17062,7 @@
 			(uuid "ffcaee8a-e4ae-455d-b340-e45ba23d4c0d")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "U3")
 					(unit 1)
@@ -16721,7 +17072,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 91.44 140.97 0)
+		(at 127 146.05 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -16732,7 +17083,7 @@
 		(fields_autoplaced yes)
 		(uuid "bcdfa506-8c90-451b-8746-1bbdd995fcda")
 		(property "Reference" "#PWR069"
-			(at 91.44 147.32 0)
+			(at 127 152.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16743,7 +17094,7 @@
 			)
 		)
 		(property "Value" "TRS_GND"
-			(at 91.44 146.05 0)
+			(at 127 151.13 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -16753,7 +17104,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 91.44 140.97 0)
+			(at 127 146.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16764,7 +17115,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 91.44 140.97 0)
+			(at 127 146.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16775,7 +17126,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 91.44 140.97 0)
+			(at 127 146.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16789,7 +17140,7 @@
 			(uuid "60d1077a-1101-4cfa-916c-d43e55c6e752")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR069")
 					(unit 1)
@@ -16877,7 +17228,7 @@
 			(uuid "e2ae322e-fbd8-43b8-bda1-55772692f552")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "J3")
 					(unit 1)
@@ -16955,7 +17306,7 @@
 			(uuid "763b4f77-b619-418a-9ff1-a030d800c8f6")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR037")
 					(unit 1)
@@ -17033,7 +17384,7 @@
 			(uuid "ad9ef8e6-073b-49ca-8eba-e0e06a0abc6b")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR09")
 					(unit 1)
@@ -17043,7 +17394,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 78.74 140.97 0)
+		(at 114.3 146.05 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -17054,7 +17405,7 @@
 		(fields_autoplaced yes)
 		(uuid "be79b9f0-89f9-41e5-8906-aca2bdbba3af")
 		(property "Reference" "#PWR024"
-			(at 78.74 147.32 0)
+			(at 114.3 152.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17065,7 +17416,7 @@
 			)
 		)
 		(property "Value" "GND_PICO"
-			(at 78.74 146.05 0)
+			(at 114.3 151.13 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17075,7 +17426,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 78.74 140.97 0)
+			(at 114.3 146.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17086,7 +17437,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 78.74 140.97 0)
+			(at 114.3 146.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17097,7 +17448,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 78.74 140.97 0)
+			(at 114.3 146.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17111,7 +17462,7 @@
 			(uuid "4e3c1c17-dd0a-44ba-8c86-acd381b803c3")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR024")
 					(unit 1)
@@ -17193,7 +17544,7 @@
 			(uuid "9f8205cf-f1c2-40d3-8650-68b68ced87a0")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "R23")
 					(unit 1)
@@ -17271,7 +17622,7 @@
 			(uuid "220cd366-4839-480e-9459-951f3d3bd611")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR04")
 					(unit 1)
@@ -17353,7 +17704,7 @@
 			(uuid "b9e5a238-2949-4920-808f-78c7a8c1ee0a")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "C19")
 					(unit 1)
@@ -17431,7 +17782,7 @@
 			(uuid "1b98a348-ba62-4171-a3d1-ab84a91a6fc2")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR048")
 					(unit 1)
@@ -17509,7 +17860,7 @@
 			(uuid "b2af0e62-8233-4332-8428-ffc8f72315f0")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR014")
 					(unit 1)
@@ -17591,7 +17942,7 @@
 			(uuid "0148babd-dd84-46c6-96b7-f060ad0658b8")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "C7")
 					(unit 1)
@@ -17669,7 +18020,7 @@
 			(uuid "c4116084-a16c-4775-b795-c927568d0be4")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR067")
 					(unit 1)
@@ -17751,7 +18102,7 @@
 			(uuid "e3ad1be3-dd0e-4de1-90b8-23cbe848d3b7")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "J7")
 					(unit 1)
@@ -17833,7 +18184,7 @@
 			(uuid "0016e3f7-eb25-4916-b8cf-2e69e38b346c")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "J5")
 					(unit 1)
@@ -17843,7 +18194,7 @@
 	)
 	(symbol
 		(lib_id "Device:C")
-		(at 76.2 90.17 0)
+		(at 111.76 95.25 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -17854,7 +18205,7 @@
 		(fields_autoplaced yes)
 		(uuid "d07ff39a-c10a-43c0-8995-b852ec1253de")
 		(property "Reference" "C8"
-			(at 80.01 88.8999 0)
+			(at 115.57 93.9799 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17865,7 +18216,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 80.01 91.4399 0)
+			(at 115.57 96.5199 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17876,7 +18227,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
-			(at 77.1652 93.98 0)
+			(at 112.7252 99.06 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17887,7 +18238,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 76.2 90.17 0)
+			(at 111.76 95.25 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17898,7 +18249,7 @@
 			)
 		)
 		(property "Description" "Unpolarized capacitor"
-			(at 76.2 90.17 0)
+			(at 111.76 95.25 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17915,7 +18266,7 @@
 			(uuid "f0133d0e-fec2-4bfb-b9a4-4cc01ed352ad")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "C8")
 					(unit 1)
@@ -17993,7 +18344,7 @@
 			(uuid "6d2d85ce-0570-42c5-a266-fd1fff61063d")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR015")
 					(unit 1)
@@ -18003,7 +18354,7 @@
 	)
 	(symbol
 		(lib_id "power:+3V3")
-		(at 88.9 81.28 0)
+		(at 124.46 86.36 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -18014,7 +18365,7 @@
 		(fields_autoplaced yes)
 		(uuid "d2b5886e-b202-4d22-88c0-bcc83f6eac38")
 		(property "Reference" "#PWR05"
-			(at 88.9 85.09 0)
+			(at 124.46 90.17 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18025,7 +18376,7 @@
 			)
 		)
 		(property "Value" "+3V3_TRS"
-			(at 88.9 76.2 0)
+			(at 124.46 81.28 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18035,7 +18386,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 88.9 81.28 0)
+			(at 124.46 86.36 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18046,7 +18397,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 88.9 81.28 0)
+			(at 124.46 86.36 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18057,7 +18408,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+3V3\""
-			(at 88.9 81.28 0)
+			(at 124.46 86.36 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18071,7 +18422,7 @@
 			(uuid "d4f37d2a-a0f9-469e-8b33-f6c825e83db9")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR05")
 					(unit 1)
@@ -18151,7 +18502,7 @@
 			(uuid "98734006-7ca0-411b-ab1d-2a2b67ba6a22")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "R14")
 					(unit 1)
@@ -18229,9 +18580,87 @@
 			(uuid "2053ade2-9c04-4120-9b53-8e6156e3aa07")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR018")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 57.15 97.79 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "d4ef313c-9946-4d87-a774-23e7d415e108")
+		(property "Reference" "#PWR070"
+			(at 57.15 104.14 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND_PICO"
+			(at 57.15 102.87 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.143 1.143)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 57.15 97.79 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 57.15 97.79 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 57.15 97.79 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "f44473a1-24fa-4f3f-8dac-5b959708fb63")
+		)
+		(instances
+			(project "Kaiju"
+				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
+					(reference "#PWR070")
 					(unit 1)
 				)
 			)
@@ -18307,7 +18736,7 @@
 			(uuid "8009190f-8ce9-494b-972b-a43247dde4d0")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR062")
 					(unit 1)
@@ -18389,7 +18818,7 @@
 			(uuid "3310ac85-0053-4ef2-8ef4-9a62a52ba942")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "C4")
 					(unit 1)
@@ -18471,7 +18900,7 @@
 			(uuid "3b86d957-0166-4b78-9240-2ca16366c524")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "R21")
 					(unit 1)
@@ -18549,7 +18978,7 @@
 			(uuid "4dada8c5-2226-4b66-ae7c-3735de670611")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR055")
 					(unit 1)
@@ -18637,7 +19066,7 @@
 			(uuid "f212837a-c808-4cfb-ac7e-50705f146476")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "J9")
 					(unit 1)
@@ -18715,7 +19144,7 @@
 			(uuid "699601dc-47a1-48c2-8a63-f5dc165d56f2")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR036")
 					(unit 1)
@@ -18793,7 +19222,7 @@
 			(uuid "7df30d41-5468-438c-9a3c-688cf66f9617")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR065")
 					(unit 1)
@@ -18871,7 +19300,7 @@
 			(uuid "3510c60f-b9dc-491c-9705-e892cebbc4a3")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR059")
 					(unit 1)
@@ -18949,7 +19378,7 @@
 			(uuid "720e6cb3-675c-4e8b-8e37-3ec1efa865f6")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR020")
 					(unit 1)
@@ -18959,7 +19388,7 @@
 	)
 	(symbol
 		(lib_id "Device:R")
-		(at 66.04 113.03 0)
+		(at 101.6 118.11 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -18970,7 +19399,7 @@
 		(fields_autoplaced yes)
 		(uuid "e5a52f84-0dc8-42ad-afde-b788b5f555de")
 		(property "Reference" "R2"
-			(at 68.58 111.7599 0)
+			(at 104.14 116.8399 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18981,7 +19410,7 @@
 			)
 		)
 		(property "Value" "4.7k"
-			(at 68.58 114.2999 0)
+			(at 104.14 119.3799 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18992,7 +19421,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
-			(at 64.262 113.03 90)
+			(at 99.822 118.11 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19003,7 +19432,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 66.04 113.03 0)
+			(at 101.6 118.11 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19014,7 +19443,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 66.04 113.03 0)
+			(at 101.6 118.11 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19031,7 +19460,7 @@
 			(uuid "9806a491-4b7a-4437-be2f-43a5ddca6d8f")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "R2")
 					(unit 1)
@@ -19109,7 +19538,7 @@
 			(uuid "38fb9383-ec65-4088-b327-c0c26ff373b4")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR050")
 					(unit 1)
@@ -19231,7 +19660,7 @@
 			(uuid "f35602f6-24ef-48e1-8321-4552a7254bb0")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "U9")
 					(unit 1)
@@ -19353,7 +19782,7 @@
 			(uuid "41e345e7-db83-4829-9b47-47a96dbb00a7")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "U11")
 					(unit 1)
@@ -19431,7 +19860,7 @@
 			(uuid "71fc4852-7e2a-42b5-9783-6fd236c1c987")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR016")
 					(unit 1)
@@ -19519,7 +19948,7 @@
 			(uuid "5d44c9a6-93bd-4d3d-b1c6-78314ce4f789")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "J11")
 					(unit 1)
@@ -19597,7 +20026,7 @@
 			(uuid "41710db5-4548-4e63-a9a0-92d99df59053")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR054")
 					(unit 1)
@@ -19675,7 +20104,7 @@
 			(uuid "171e624f-e554-4f1d-9ee2-d019fa74b7ab")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR029")
 					(unit 1)
@@ -19753,7 +20182,7 @@
 			(uuid "32b87f5b-6d95-4772-b79e-e62adfcff297")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR044")
 					(unit 1)
@@ -19831,7 +20260,7 @@
 			(uuid "89454d00-b41e-492d-a42c-c5d7cdb96cd2")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR08")
 					(unit 1)
@@ -19909,7 +20338,7 @@
 			(uuid "b4e02734-eda0-4fb3-8149-495ab5478164")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR058")
 					(unit 1)
@@ -19992,7 +20421,7 @@
 			(uuid "cb3bfc1f-9195-468e-8c63-1ce6eb9627c3")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "J12")
 					(unit 1)
@@ -20070,7 +20499,7 @@
 			(uuid "8e4a5c78-be61-4025-b074-378afd0748de")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR056")
 					(unit 1)
@@ -20152,7 +20581,7 @@
 			(uuid "2fa61523-bb38-4924-b528-ed72ac38bf47")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "R20")
 					(unit 1)
@@ -20230,7 +20659,7 @@
 			(uuid "747e886a-c11c-43da-9fb3-5a7319bc78b2")
 		)
 		(instances
-			(project "kaiju-final"
+			(project "Kaiju"
 				(path "/c1ac21e8-f1a5-4dcd-9954-a889d9ce844e"
 					(reference "#PWR030")
 					(unit 1)
